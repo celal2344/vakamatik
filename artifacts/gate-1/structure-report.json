@@ -1,0 +1,300 @@
+{
+  "schema": "gate-1-structural-validation-v1",
+  "input": "C:\\Users\\celal\\OneDrive\\Desktop\\vakamatik\\artifacts\\gate-1\\gate-1-spike.pptx",
+  "sha256": "802f329f8add5d1c7e3bdb7e1089737cb2461bb4a510be05b4d1fd7a9ce7c5f6",
+  "generatedAtUtc": "2026-08-29T12:21:34.4886326+00:00",
+  "passed": true,
+  "checks": [
+    {
+      "id": "opc-content-types",
+      "passed": true,
+      "severity": "error",
+      "detail": "[Content_Types].xml is present."
+    },
+    {
+      "id": "opc-root-relationships",
+      "passed": true,
+      "severity": "error",
+      "detail": "Root relationships are present."
+    },
+    {
+      "id": "presentation-part",
+      "passed": true,
+      "severity": "error",
+      "detail": "Presentation part is present."
+    },
+    {
+      "id": "presentation-relationships",
+      "passed": true,
+      "severity": "error",
+      "detail": "Presentation relationships are present."
+    },
+    {
+      "id": "presentation-content-type",
+      "passed": true,
+      "severity": "error",
+      "detail": "Presentation content type override is declared."
+    },
+    {
+      "id": "slide-size",
+      "passed": true,
+      "severity": "error",
+      "detail": "Canvas is 9144000 x 6858000 EMU; expected 9144000 x 6858000 EMU."
+    },
+    {
+      "id": "slide-size-points",
+      "passed": true,
+      "severity": "error",
+      "detail": "Canvas is 720 x 540 points."
+    },
+    {
+      "id": "slide-count",
+      "passed": true,
+      "severity": "error",
+      "detail": "Found 4 slides; expected exactly four."
+    },
+    {
+      "id": "slide-1-bounds",
+      "passed": true,
+      "severity": "error",
+      "detail": "All measurable objects are within the slide canvas."
+    },
+    {
+      "id": "slide-2-bounds",
+      "passed": true,
+      "severity": "error",
+      "detail": "All measurable objects are within the slide canvas."
+    },
+    {
+      "id": "slide-3-bounds",
+      "passed": true,
+      "severity": "error",
+      "detail": "All measurable objects are within the slide canvas."
+    },
+    {
+      "id": "slide-4-bounds",
+      "passed": true,
+      "severity": "error",
+      "detail": "All measurable objects are within the slide canvas."
+    },
+    {
+      "id": "semantic-order",
+      "passed": true,
+      "severity": "error",
+      "detail": "Semantic order: dental_frontal_comparison, ceph_profile_overlay, ceph_vertical, problem_goal_plan."
+    },
+    {
+      "id": "native-text",
+      "passed": true,
+      "severity": "error",
+      "detail": "Native text boxes remain on dental_frontal_comparison and ceph_vertical; native table-cell text remains on ceph_vertical and problem_goal_plan. The overlay intentionally contains images only."
+    },
+    {
+      "id": "native-tables",
+      "passed": true,
+      "severity": "error",
+      "detail": "Slides ceph_vertical and problem_goal_plan contain native DrawingML tables."
+    },
+    {
+      "id": "speaker-notes",
+      "passed": true,
+      "severity": "error",
+      "detail": "Speaker notes relationship exists on ceph_vertical."
+    },
+    {
+      "id": "image-crop-represented",
+      "passed": true,
+      "severity": "error",
+      "detail": "At least one image has DrawingML crop values."
+    },
+    {
+      "id": "image-crop-valid",
+      "passed": true,
+      "severity": "error",
+      "detail": "All represented DrawingML crop percentages are within valid non-inverted bounds."
+    },
+    {
+      "id": "image-rotation-represented",
+      "passed": true,
+      "severity": "error",
+      "detail": "At least one image has non-zero DrawingML rotation."
+    },
+    {
+      "id": "image-opacity-represented",
+      "passed": true,
+      "severity": "error",
+      "detail": "At least one image has DrawingML opacity."
+    },
+    {
+      "id": "z-order-represented",
+      "passed": true,
+      "severity": "error",
+      "detail": "Picture document order is available as deterministic z-order evidence."
+    },
+    {
+      "id": "no-prohibited-data",
+      "passed": true,
+      "severity": "error",
+      "detail": "No configured PHI canary or source-path marker found."
+    },
+    {
+      "id": "internal-relationships",
+      "passed": true,
+      "severity": "error",
+      "detail": "All internal relationship targets resolve."
+    }
+  ],
+  "slides": [
+    {
+      "index": 1,
+      "semanticId": "dental_frontal_comparison",
+      "nativeTextShapeCount": 4,
+      "nativeTableCount": 0,
+      "pictureCount": 3,
+      "hasSpeakerNotes": false,
+      "outsideCanvas": [],
+      "images": [
+        {
+          "name": "dental-intraoral",
+          "rotationUnits": 0,
+          "opacityAmount": 100000,
+          "hasCrop": true,
+          "crop": {
+            "left": 75,
+            "top": 0,
+            "right": 75,
+            "bottom": 0
+          },
+          "bounds": {
+            "x": 0,
+            "y": 0,
+            "width": 5613400,
+            "height": 3162300
+          }
+        },
+        {
+          "name": "dental-model",
+          "rotationUnits": 0,
+          "opacityAmount": 100000,
+          "hasCrop": true,
+          "crop": {
+            "left": 75,
+            "top": 0,
+            "right": 75,
+            "bottom": 0
+          },
+          "bounds": {
+            "x": 0,
+            "y": 3162300,
+            "width": 5613400,
+            "height": 3162300
+          }
+        },
+        {
+          "name": "frontal-board",
+          "rotationUnits": 0,
+          "opacityAmount": 100000,
+          "hasCrop": true,
+          "crop": {
+            "left": 313,
+            "top": 0,
+            "right": 313,
+            "bottom": 0
+          },
+          "bounds": {
+            "x": 5613400,
+            "y": 952500,
+            "width": 3530600,
+            "height": 4737100
+          }
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "semanticId": "ceph_profile_overlay",
+      "nativeTextShapeCount": 0,
+      "nativeTableCount": 0,
+      "pictureCount": 2,
+      "hasSpeakerNotes": true,
+      "outsideCanvas": [],
+      "images": [
+        {
+          "name": "profile-layer",
+          "rotationUnits": 45000,
+          "opacityAmount": 62000,
+          "hasCrop": true,
+          "crop": {
+            "left": 3000,
+            "top": 3000,
+            "right": 3000,
+            "bottom": 3000
+          },
+          "bounds": {
+            "x": 1269873,
+            "y": 488823,
+            "width": 6032754,
+            "height": 6032754
+          }
+        },
+        {
+          "name": "ceph-layer",
+          "rotationUnits": -258000,
+          "opacityAmount": 78000,
+          "hasCrop": true,
+          "crop": {
+            "left": 4000,
+            "top": 6889,
+            "right": 4000,
+            "bottom": 6889
+          },
+          "bounds": {
+            "x": 1821910,
+            "y": 809498,
+            "width": 5766879,
+            "height": 5404104
+          }
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "semanticId": "ceph_vertical",
+      "nativeTextShapeCount": 1,
+      "nativeTableCount": 1,
+      "pictureCount": 1,
+      "hasSpeakerNotes": true,
+      "outsideCanvas": [],
+      "images": [
+        {
+          "name": "vertical-ceph",
+          "rotationUnits": 0,
+          "opacityAmount": 100000,
+          "hasCrop": true,
+          "crop": {
+            "left": 0,
+            "top": 4641,
+            "right": 0,
+            "bottom": 4641
+          },
+          "bounds": {
+            "x": 38100,
+            "y": 1498600,
+            "width": 4241800,
+            "height": 3848100
+          }
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "semanticId": "problem_goal_plan",
+      "nativeTextShapeCount": 0,
+      "nativeTableCount": 1,
+      "pictureCount": 0,
+      "hasSpeakerNotes": false,
+      "outsideCanvas": [],
+      "images": []
+    }
+  ]
+}

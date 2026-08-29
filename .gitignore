@@ -1,0 +1,11 @@
+node_modules/
+dist/
+bin/
+obj/
+.pnpm-store/
+TestResults/
+# Supplied clinical/reference files stay local and must never be committed.
+resources/
+artifacts/gate-1/manual-edited/
+*.user
+*.suo

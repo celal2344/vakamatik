@@ -1,0 +1,25 @@
+{
+  "name": "@vakamatik/pptx-exporter",
+  "version": "0.0.0-gate-1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --root ../.. packages/pptx-exporter",
+    "generate": "corepack pnpm@10.17.1 --filter @vakamatik/test-fixtures build && corepack pnpm@10.17.1 --filter @vakamatik/test-fixtures generate && node dist/generate.js"
+  },
+  "dependencies": {
+    "@vakamatik/export-contract": "workspace:*",
+    "@vakamatik/test-fixtures": "workspace:*",
+    "pptxgenjs": "4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "vitest": "4.1.11"
+  }
+}

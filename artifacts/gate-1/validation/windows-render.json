@@ -1,0 +1,47 @@
+{
+    "schema":  "gate-1-powerpoint-render-v1",
+    "generatedAtUtc":  "2026-08-29T12:26:27.5075499+00:00",
+    "platform":  "Windows PowerPoint",
+    "powerPointVersion":  "16.0",
+    "sourcePath":  "C:\\Users\\celal\\OneDrive\\Desktop\\vakamatik\\artifacts\\gate-1\\gate-1-spike.pptx",
+    "sourceSha256":  "51071211500bf69d52b190b93d22470390a6ce7e6b9aaac3cb1726299981bcb9",
+    "sourceUnchanged":  true,
+    "renderSize":  {
+                       "width":  1440,
+                       "height":  1080
+                   },
+    "slides":  [
+                   {
+                       "index":  1,
+                       "semanticId":  "dental_frontal_comparison",
+                       "path":  "C:\\Users\\celal\\OneDrive\\Desktop\\vakamatik\\artifacts\\gate-1\\render-current\\01-dental_frontal_comparison.png",
+                       "sha256":  "42a0d312a14a3464f502a1c7f7aacabbbeabb0ec235fb10e868b999c119c7dd1",
+                       "width":  1440,
+                       "height":  1080
+                   },
+                   {
+                       "index":  2,
+                       "semanticId":  "ceph_profile_overlay",
+                       "path":  "C:\\Users\\celal\\OneDrive\\Desktop\\vakamatik\\artifacts\\gate-1\\render-current\\02-ceph_profile_overlay.png",
+                       "sha256":  "33d5605025032dcce000d81ae2d2f23ca523d78d66220e77b5ba266dc0d3e7b7",
+                       "width":  1440,
+                       "height":  1080
+                   },
+                   {
+                       "index":  3,
+                       "semanticId":  "ceph_vertical",
+                       "path":  "C:\\Users\\celal\\OneDrive\\Desktop\\vakamatik\\artifacts\\gate-1\\render-current\\03-ceph_vertical.png",
+                       "sha256":  "750d7c7fc3fa6897b667b110c7bf704635c5afaabc85f965e8efffa9471d064d",
+                       "width":  1440,
+                       "height":  1080
+                   },
+                   {
+                       "index":  4,
+                       "semanticId":  "problem_goal_plan",
+                       "path":  "C:\\Users\\celal\\OneDrive\\Desktop\\vakamatik\\artifacts\\gate-1\\render-current\\04-problem_goal_plan.png",
+                       "sha256":  "f050b97c14c2b2802825394c75e0fdfae2a31ac2cde6df2db35d3c711fa9013f",
+                       "width":  1440,
+                       "height":  1080
+                   }
+               ]
+}

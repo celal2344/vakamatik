@@ -1,0 +1,50 @@
+{
+    "schema":  "gate-1-windows-powerpoint-automated-acceptance-v1",
+    "generatedAtUtc":  "2026-08-29T12:26:34.6652058+00:00",
+    "powerPointVersion":  "16.0",
+    "acceptanceCopy":  "C:\\Users\\celal\\OneDrive\\Desktop\\vakamatik\\artifacts\\gate-1\\validation\\powerpoint-acceptance\\gate-1-powerpoint-acceptance-copy.pptx",
+    "passed":  true,
+    "checks":  [
+                   {
+                       "id":  "open",
+                       "passed":  true,
+                       "detail":  "Opened with 4 slides."
+                   },
+                   {
+                       "id":  "text-edit-persists",
+                       "passed":  true,
+                       "detail":  "Native text edit persisted after reopen."
+                   },
+                   {
+                       "id":  "table-edit-persists",
+                       "passed":  true,
+                       "detail":  "Native table-cell edit persisted after reopen."
+                   },
+                   {
+                       "id":  "image-move-persists",
+                       "passed":  true,
+                       "detail":  "0.5-point image move persisted."
+                   },
+                   {
+                       "id":  "rotation-persists",
+                       "passed":  true,
+                       "detail":  "Image rotation persisted."
+                   },
+                   {
+                       "id":  "opacity-persists",
+                       "passed":  true,
+                       "detail":  "Image opacity persisted."
+                   },
+                   {
+                       "id":  "notes-persist",
+                       "passed":  true,
+                       "detail":  "Speaker notes persisted."
+                   },
+                   {
+                       "id":  "source-unchanged",
+                       "passed":  true,
+                       "detail":  "Generated original was not modified."
+                   }
+               ],
+    "limitation":  "Automation proves persistence and package behavior on this Windows installation; it does not replace visual human inspection or macOS PowerPoint acceptance."
+}

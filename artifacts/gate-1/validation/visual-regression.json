@@ -1,0 +1,48 @@
+{
+    "schema":  "gate-1-same-environment-visual-regression-v1",
+    "generatedAtUtc":  "2026-08-29T12:26:32.5347898+00:00",
+    "scope":  "same Windows PowerPoint version, fonts, OS, and render size only",
+    "thresholds":  {
+                       "maxChangedPixelRatio":  0.001,
+                       "maxMeanChannelDifference":  0.15
+                   },
+    "passed":  true,
+    "results":  [
+                    {
+                        "file":  "01-dental_frontal_comparison.png",
+                        "passed":  true,
+                        "changedPixels":  0,
+                        "changedPixelRatio":  0,
+                        "meanChannelDifference":  0,
+                        "currentSha256":  "42a0d312a14a3464f502a1c7f7aacabbbeabb0ec235fb10e868b999c119c7dd1",
+                        "goldenSha256":  "42a0d312a14a3464f502a1c7f7aacabbbeabb0ec235fb10e868b999c119c7dd1"
+                    },
+                    {
+                        "file":  "02-ceph_profile_overlay.png",
+                        "passed":  true,
+                        "changedPixels":  0,
+                        "changedPixelRatio":  0,
+                        "meanChannelDifference":  0,
+                        "currentSha256":  "33d5605025032dcce000d81ae2d2f23ca523d78d66220e77b5ba266dc0d3e7b7",
+                        "goldenSha256":  "33d5605025032dcce000d81ae2d2f23ca523d78d66220e77b5ba266dc0d3e7b7"
+                    },
+                    {
+                        "file":  "03-ceph_vertical.png",
+                        "passed":  true,
+                        "changedPixels":  0,
+                        "changedPixelRatio":  0,
+                        "meanChannelDifference":  0,
+                        "currentSha256":  "750d7c7fc3fa6897b667b110c7bf704635c5afaabc85f965e8efffa9471d064d",
+                        "goldenSha256":  "750d7c7fc3fa6897b667b110c7bf704635c5afaabc85f965e8efffa9471d064d"
+                    },
+                    {
+                        "file":  "04-problem_goal_plan.png",
+                        "passed":  true,
+                        "changedPixels":  0,
+                        "changedPixelRatio":  0,
+                        "meanChannelDifference":  0,
+                        "currentSha256":  "f050b97c14c2b2802825394c75e0fdfae2a31ac2cde6df2db35d3c711fa9013f",
+                        "goldenSha256":  "f050b97c14c2b2802825394c75e0fdfae2a31ac2cde6df2db35d3c711fa9013f"
+                    }
+                ]
+}

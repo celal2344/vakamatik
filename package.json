@@ -1,0 +1,23 @@
+{
+  "name": "orthodontic-case-builder",
+  "version": "0.0.0-gate-1",
+  "private": true,
+  "packageManager": "pnpm@10.17.1",
+  "engines": {
+    "node": "24.15.0"
+  },
+  "scripts": {
+    "build": "corepack pnpm@10.17.1 -r build",
+    "typecheck": "corepack pnpm@10.17.1 -r typecheck",
+    "test": "vitest run",
+    "test:update-goldens": "vitest run --update",
+    "gate1": "corepack pnpm@10.17.1 build && corepack pnpm@10.17.1 generate:gate1 && corepack pnpm@10.17.1 validate:gate1 && corepack pnpm@10.17.1 test",
+    "generate:gate1": "corepack pnpm@10.17.1 --filter @vakamatik/pptx-exporter generate",
+    "validate:gate1": "dotnet run --project tools/pptx-validator/PptxValidator.csproj -- artifacts/gate-1/gate-1-spike.pptx artifacts/gate-1/validation/structure-report.json"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}
