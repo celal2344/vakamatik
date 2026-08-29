@@ -1,6 +1,6 @@
 # Gate 2 report: Workspace and hardened Electron shell
 
-Date: 2026-08-29
+Date: 2026-08-30
 Status: Implementation complete; pending product-owner/consultant acceptance
 Gate 3: Not started
 
@@ -108,12 +108,15 @@ The first local Gate 1 validator invocation was blocked by Windows Application C
 
 ## CI and packaging evidence
 
-Local Windows packaging, ASAR inspection, and binary fuse inspection pass. The final unsigned executable cannot launch under this workstation's Smart App Control enterprise-signing policy. `.github/workflows/gate-2.yml` runs the unchanged launch smoke on Windows and Intel macOS, where the result will determine platform acceptance.
+Local Windows packaging, ASAR inspection, and binary fuse inspection pass. The final unsigned executable cannot launch under this workstation's Smart App Control enterprise-signing policy. `.github/workflows/gate-2.yml` contains the Windows and Intel macOS verification pipeline.
 
-- Windows GitHub Actions: pending the first pushed Gate 2 run.
-- macOS GitHub Actions: pending the first pushed Gate 2 run.
+- Initial GitHub Actions run `33276389997`: failed during static verification. Windows exposed LF/CRLF checkout inconsistency; macOS exposed workspace type declarations that depended on unbuilt `dist` output.
+- Commit `9bd23de` adds checkout-stable LF attributes and source-backed type declarations while retaining compiled runtime exports. The local CI-equivalent command then passed with 28 tests.
+- Replacement GitHub Actions run `33276632291`: started for Windows and macOS, but its completion was not awaited.
+- Windows GitHub Actions acceptance: deferred by the product owner on 2026-08-30; not claimed as passed.
+- macOS GitHub Actions acceptance: deferred by the product owner on 2026-08-30; not claimed as passed.
 
-These entries must not be changed to pass until the corresponding GitHub jobs complete successfully. No claim of local macOS execution is made.
+This exception closes the implementation task without converting missing platform evidence into a pass. Cross-platform packaged launch remains an unverified residual risk. No claim of local or CI macOS success is made.
 
 ## Repository structure and files changed
 
@@ -129,21 +132,21 @@ Gate 1 source, artifacts, tests, exporter selection, and clinical/reference excl
 
 ## Remaining risks and limitations
 
-- macOS Gate 2 CI evidence is pending until the pushed workflow completes; no local macOS device was used.
+- Windows and macOS Gate 2 CI acceptance was deferred by the product owner; cross-platform build, Electron smoke, packaging, and packaged-launch results remain unverified residual risks.
 - Packages are intentionally unsigned development artifacts. Signing, notarization, release distribution, and operating-system reputation prompts belong to a later gate.
 - The CSP permits inline styles, but never inline scripts, because the minimal React shell currently uses a static stylesheet and Electron/Vite development behavior. Gate 3 should keep script policy unchanged and reassess style policy if CSS architecture changes.
 - `@electron/fuses` 1.8.0 recognizes eight Electron v1 fuse positions; the package smoke asserts every recognized position. Dependency review should revisit this when Forge accepts a newer fuse package.
 - Windows Application Control blocks locally generated .NET assemblies in the OneDrive tree; the automated Gate 1 test now places only its build output in the user temp directory without changing validation.
-- Smart App Control blocks the final unsigned Windows executable under policy ID `{0283ac0f-fff1-49ae-ada1-8a933130cad6}`. This is consistent with Gate 2's unsigned non-goal, but Windows CI must still prove that the package itself launches.
+- Smart App Control blocks the final unsigned Windows executable under policy ID `{0283ac0f-fff1-49ae-ada1-8a933130cad6}`. This is consistent with Gate 2's unsigned non-goal; a future Windows CI or suitable test host should still prove that the package itself launches.
 - The Gate 1 macOS PowerPoint compatibility exception remains an unrelated residual risk.
 
 ## Gate 3 prerequisites
 
 1. Product owner or consultant reviews and accepts this Gate 2 report.
-2. Windows and macOS GitHub Actions jobs complete successfully, or any platform defect is resolved and rerun.
+2. The product owner accepts the explicitly deferred Windows/macOS CI evidence as residual risk, or requests a future successful rerun before Gate 3.
 3. The frozen bridge remains narrow; any Gate 3 filesystem capability begins with a new named contract and runtime schemas.
 4. Gate 3 scope and acceptance criteria are explicitly authorized.
 
 ## Recommendation
 
-Gate 2 implementation is complete and ready for product-owner/consultant review once both CI platform jobs are green. Gate 3 has not started and must not start without explicit acceptance.
+Gate 2 implementation is complete and ready for product-owner/consultant review under the explicit cross-platform CI exception. Gate 3 has not started and must not start without explicit acceptance.

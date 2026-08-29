@@ -1,8 +1,8 @@
 # Orthodontic Case Presentation Builder — Project Context
 
 Status: Gate 2 implementation complete; pending product-owner/consultant acceptance
-Version: 1.4
-Date: 2026-08-29
+Version: 1.5
+Date: 2026-08-30
 Current gate: Gate 2 implementation complete; Gate 3 is not started
 
 ## 1. Purpose of this file
@@ -215,8 +215,9 @@ Delivered foundation:
 - Frozen `window.vakamatik` shell bridge with only `getAppInfo` and `ping`; strict runtime validation and sender/frame/origin checks.
 - Sandboxed renderer, context isolation, no Node integration, restrictive CSP, denied navigation/windows/webviews/permissions, and no external URL or telemetry path.
 - Restricted `vakamatik://app` protocol with traversal protection and an asset-type allowlist.
-- Unsigned Windows package, ASAR check, and fuse inspection passing locally; final unsigned launch is blocked by workstation Smart App Control and awaits Windows CI.
+- Unsigned Windows package, ASAR check, and fuse inspection passing locally; final unsigned launch is blocked by workstation Smart App Control.
 - Windows and macOS GitHub Actions jobs for frozen install, verification, Electron smoke, unsigned packaging, fuse inspection, and packaged launch.
+- Cross-platform Gate 2 CI acceptance was deferred by the product owner on 2026-08-30 to close the implementation without waiting for the platform jobs. This is an unverified residual risk, not a claimed pass.
 
 Gate 2 evidence is recorded in `docs/gates/GATE-2-REPORT.md`, `docs/TEST_MATRIX.md`, and `docs/decisions/ADR-002-electron-shell-boundary.md`.
 
@@ -282,6 +283,6 @@ Gate 2 additions:
 - Gate 2 unit, source-security, Electron launch, and packaged-app smoke coverage.
 - Windows/macOS CI workflow and current Gate 2 report.
 
-Next action: review Gate 2 CI evidence and obtain explicit product-owner/consultant acceptance. Gate 3 is not started and must not begin without that acceptance.
+Next action: obtain explicit product-owner/consultant acceptance of Gate 2, including the documented cross-platform CI exception. Gate 3 is not started and must not begin without that acceptance.
 
-Open Gate 2 blockers: Windows and macOS GitHub Actions results are pending the first pushed run; Windows CI must run the final packaged-launch smoke because local Smart App Control rejects unsigned binaries. Residual risks: macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.
+Open Gate 2 blockers: product-owner/consultant acceptance only. Residual risks: the replacement Windows/macOS Gate 2 CI run was not awaited as part of closure; local Smart App Control prevents Windows packaged-launch evidence; macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.
