@@ -21,10 +21,16 @@ test("hardened shell launches with only its documented bridge", async () => {
       const apiRecord = window.vakamatik as unknown as Record<string, unknown>;
       const ping = await window.vakamatik.ping({ nonce: "e2e_nonce" });
       let malformedRejected = false;
+      let malformedCaseRejected = false;
       try {
         await window.vakamatik.ping({ nonce: "bad nonce", extra: true } as never);
       } catch {
         malformedRejected = true;
+      }
+      try {
+        await window.vakamatik.createCase({ title: "Synthetic", path: "C:/secret" } as never);
+      } catch {
+        malformedCaseRejected = true;
       }
       return {
         apiKeys: Object.keys(apiRecord).sort(),
@@ -32,17 +38,19 @@ test("hardened shell launches with only its documented bridge", async () => {
         hasGenericInvoke: "invoke" in apiRecord,
         hasProcess: "process" in globalRecord,
         hasRequire: "require" in globalRecord,
+        malformedCaseRejected,
         malformedRejected,
         ping,
       };
     });
 
     expect(boundary).toEqual({
-      apiKeys: ["getAppInfo", "ping"],
+      apiKeys: ["closeCase", "createCase", "getAppInfo", "importCaseImage", "openCase", "ping", "saveCase"],
       hasBuffer: false,
       hasGenericInvoke: false,
       hasProcess: false,
       hasRequire: false,
+      malformedCaseRejected: true,
       malformedRejected: true,
       ping: { nonce: "e2e_nonce", status: "ok" },
     });

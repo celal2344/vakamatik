@@ -1,15 +1,31 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { app, BrowserWindow, ipcMain, protocol, session } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, protocol, session } from "electron";
+import {
+  assignImportedImage,
+  createManagedCase,
+  openManagedCase,
+  updateManagedCaseTitle,
+  type OpenManagedCase,
+} from "@vakamatik/case-store";
 import {
   DESKTOP_APP_ORIGIN,
   DESKTOP_APP_SCHEME,
+  caseCloseRequestSchema,
+  caseCloseResponseSchema,
+  caseCreateRequestSchema,
+  caseDialogResultSchema,
+  caseImportImageRequestSchema,
+  caseOpenRequestSchema,
+  caseSaveRequestSchema,
+  caseViewSchema,
   shellAppInfoSchema,
   shellGetAppInfoRequestSchema,
   shellPingRequestSchema,
   shellPingResponseSchema,
 } from "@vakamatik/desktop-contract";
 import { DESKTOP_IPC_CHANNELS } from "@vakamatik/desktop-contract/ipc";
+import { readThumbnailDataUrl } from "@vakamatik/media";
 import { assertTrustedIpcSender, isTrustedRendererUrl, resolveApplicationAsset } from "./security.js";
 
 const CONTENT_SECURITY_POLICY = [
@@ -88,9 +104,38 @@ function installSessionSecurity(): void {
   });
 }
 
+async function toCaseView(opened: OpenManagedCase) {
+  const assetEntries = await Promise.all(
+    Object.values(opened.document.assets).map(
+      async (asset) =>
+        [
+          asset.assetId,
+          {
+            assetId: asset.assetId,
+            displayName: asset.displayName,
+            mimeType: asset.mimeType,
+            width: asset.width,
+            height: asset.height,
+            thumbnailDataUrl: await readThumbnailDataUrl(opened.root, asset),
+          },
+        ] as const,
+    ),
+  );
+  return caseViewSchema.parse({
+    caseId: opened.document.caseId,
+    revision: opened.document.revision,
+    title: opened.document.title,
+    folderName: path.basename(opened.root),
+    createdAt: opened.document.createdAt,
+    updatedAt: opened.document.updatedAt,
+    assets: Object.fromEntries(assetEntries),
+    assignments: opened.document.assignments,
+  });
+}
+
 function registerIpcHandlers(window: BrowserWindow): void {
-  ipcMain.removeHandler(DESKTOP_IPC_CHANNELS.getAppInfo);
-  ipcMain.removeHandler(DESKTOP_IPC_CHANNELS.ping);
+  for (const channel of Object.values(DESKTOP_IPC_CHANNELS)) ipcMain.removeHandler(channel);
+  let activeCase: OpenManagedCase | undefined;
 
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getAppInfo, (event, request: unknown) => {
     assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
@@ -107,6 +152,92 @@ function registerIpcHandlers(window: BrowserWindow): void {
     const parsed = shellPingRequestSchema.parse(request);
     return shellPingResponseSchema.parse({ nonce: parsed.nonce, status: "ok" });
   });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.createCase, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseCreateRequestSchema.parse(request);
+    const selection = await dialog.showOpenDialog(window, {
+      title: "Vakaların kaydedileceği klasörü seçin",
+      buttonLabel: "Burada oluştur",
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (selection.canceled || selection.filePaths[0] === undefined) {
+      return caseDialogResultSchema.parse({ status: "cancelled" });
+    }
+    try {
+      activeCase = await createManagedCase(selection.filePaths[0], parsed.title);
+      return caseDialogResultSchema.parse({ status: "ok", case: await toCaseView(activeCase) });
+    } catch {
+      throw new Error("Case creation failed.");
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.openCase, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    caseOpenRequestSchema.parse(request);
+    const selection = await dialog.showOpenDialog(window, {
+      title: "Vaka klasörünü açın",
+      buttonLabel: "Vakayı aç",
+      properties: ["openDirectory"],
+    });
+    if (selection.canceled || selection.filePaths[0] === undefined) {
+      return caseDialogResultSchema.parse({ status: "cancelled" });
+    }
+    try {
+      activeCase = await openManagedCase(selection.filePaths[0]);
+      return caseDialogResultSchema.parse({ status: "ok", case: await toCaseView(activeCase) });
+    } catch {
+      throw new Error("Case open failed.");
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.saveCase, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseSaveRequestSchema.parse(request);
+    try {
+      const opened = requireActiveCase(activeCase, parsed.caseId);
+      activeCase = await updateManagedCaseTitle(opened, parsed.revision, parsed.title);
+      return caseViewSchema.parse(await toCaseView(activeCase));
+    } catch {
+      throw new Error("Case save failed.");
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.closeCase, (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseCloseRequestSchema.parse(request);
+    requireActiveCase(activeCase, parsed.caseId);
+    activeCase = undefined;
+    return caseCloseResponseSchema.parse({ status: "closed" });
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.importCaseImage, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseImportImageRequestSchema.parse(request);
+    const opened = requireActiveCase(activeCase, parsed.caseId);
+    const selection = await dialog.showOpenDialog(window, {
+      title: "Yerel görüntü seçin",
+      buttonLabel: "Kayda ata",
+      properties: ["openFile"],
+      filters: [{ name: "Görüntüler", extensions: ["jpg", "jpeg", "png"] }],
+    });
+    if (selection.canceled || selection.filePaths[0] === undefined) {
+      return caseDialogResultSchema.parse({ status: "cancelled" });
+    }
+    try {
+      activeCase = await assignImportedImage(opened, parsed.revision, parsed.slotId, selection.filePaths[0]);
+      return caseDialogResultSchema.parse({ status: "ok", case: await toCaseView(activeCase) });
+    } catch {
+      throw new Error("Image import failed.");
+    }
+  });
+}
+
+function requireActiveCase(activeCase: OpenManagedCase | undefined, caseId: string): OpenManagedCase {
+  if (activeCase === undefined || activeCase.document.caseId !== caseId) {
+    throw new Error("Requested case is not active.");
+  }
+  return activeCase;
 }
 
 function createWindow(): BrowserWindow {

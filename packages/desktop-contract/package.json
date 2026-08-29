@@ -19,6 +19,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@vakamatik/domain": "workspace:*",
     "zod": "4.5.2"
   }
 }

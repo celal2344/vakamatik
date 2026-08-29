@@ -9,6 +9,7 @@ test-results/
 playwright-report/
 .vite/
 out/
+.runtime/
 # Supplied clinical/reference files stay local and must never be committed.
 resources/
 artifacts/gate-1/manual-edited/

@@ -1,12 +1,15 @@
 {
   "name": "@vakamatik/desktop",
   "productName": "Vakamatik",
-  "version": "0.0.0-gate-2",
+  "version": "0.0.0-gate-3",
   "description": "Offline orthodontic case presentation builder",
   "author": "Vakamatik",
   "private": true,
   "type": "module",
   "main": ".vite/build/main.cjs",
+  "dependencies": {
+    "sharp": "0.34.4"
+  },
   "scripts": {
     "dev": "pnpm build:main && pnpm build:preload && concurrently --kill-others --success first \"pnpm dev:renderer\" \"wait-on tcp:127.0.0.1:5173 && cross-env VAKAMATIK_DEV_SERVER_URL=http://127.0.0.1:5173 electron-forge start\"",
     "dev:renderer": "vite --config vite.renderer.config.ts",
@@ -28,7 +31,10 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "6.1.1",
+    "@vakamatik/case-store": "workspace:*",
     "@vakamatik/desktop-contract": "workspace:*",
+    "@vakamatik/domain": "workspace:*",
+    "@vakamatik/media": "workspace:*",
     "concurrently": "10.0.5",
     "cross-env": "10.1.0",
     "electron": "44.0.0",

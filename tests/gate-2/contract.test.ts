@@ -2,6 +2,8 @@ import { describe, expect, test } from "vitest";
 import {
   DESKTOP_APP_ORIGIN,
   DESKTOP_GLOBAL_KEY,
+  caseCreateRequestSchema,
+  caseImportImageRequestSchema,
   shellAppInfoSchema,
   shellGetAppInfoRequestSchema,
   shellPingRequestSchema,
@@ -9,11 +11,19 @@ import {
 } from "../../packages/desktop-contract/src/index.js";
 import { DESKTOP_IPC_CHANNELS } from "../../packages/desktop-contract/src/ipc.js";
 
-describe("frozen desktop bridge contract", () => {
-  test("contains only the two named shell operations", () => {
+describe("documented desktop bridge contract", () => {
+  test("contains only named shell and case operations", () => {
     expect(DESKTOP_GLOBAL_KEY).toBe("vakamatik");
     expect(DESKTOP_APP_ORIGIN).toBe("vakamatik://app");
-    expect(Object.keys(DESKTOP_IPC_CHANNELS)).toEqual(["getAppInfo", "ping"]);
+    expect(Object.keys(DESKTOP_IPC_CHANNELS)).toEqual([
+      "getAppInfo",
+      "ping",
+      "createCase",
+      "openCase",
+      "saveCase",
+      "closeCase",
+      "importCaseImage",
+    ]);
   });
 
   test("rejects malformed and unknown requests", () => {
@@ -21,6 +31,14 @@ describe("frozen desktop bridge contract", () => {
     expect(() => shellPingRequestSchema.parse({ nonce: "valid", unexpected: true })).toThrow();
     expect(() => shellPingRequestSchema.parse({ nonce: "not valid with spaces" })).toThrow();
     expect(() => shellPingRequestSchema.parse({ nonce: "x".repeat(65) })).toThrow();
+    expect(() => caseCreateRequestSchema.parse({ title: "Synthetic", path: "C:/secret" })).toThrow();
+    expect(() =>
+      caseImportImageRequestSchema.parse({
+        caseId: "not-a-uuid",
+        revision: 0,
+        slotId: "../../outside",
+      }),
+    ).toThrow();
   });
 
   test("validates responses strictly", () => {

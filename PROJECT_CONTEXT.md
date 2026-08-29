@@ -1,9 +1,9 @@
 # Orthodontic Case Presentation Builder — Project Context
 
-Status: Gate 2 accepted; Gate 3 authorized
-Version: 1.6
+Status: Gate 3 implementation complete; pending product-owner acceptance
+Version: 1.7
 Date: 2026-08-30
-Current gate: Gate 3 — Core cases
+Current gate: Gate 3 implementation complete; Gate 4 is not started
 
 ## 1. Purpose of this file
 
@@ -239,7 +239,23 @@ Accepted limitations:
 - Manual PowerPoint acceptance on Windows and macOS when those environments are available; any product-owner exception must be explicit and leave the untested platform recorded as residual risk.
 - No real patient data in any automated test.
 
-## 14. Lead-agent rules
+## 14. Gate 3 status
+
+Gate 3 implementation is complete and pending product-owner acceptance. Gate 4 has not started.
+
+Delivered core-case workflow:
+
+- Versioned strict Zod `case.json` schema with stable UUID case IDs, SHA-256 asset IDs, and semantic record-slot IDs.
+- Managed case folders with immutable originals, normalized PNG derivatives, WebP thumbnails, and relative asset references.
+- Atomic save, revision checks, close/reopen, and whole-folder portability.
+- JPEG/PNG import through Sharp with content deduplication and managed-path traversal protection.
+- Narrow validated case IPC operations for create, open, save, close, and single-slot image import; no raw paths or generic filesystem/dialog API reaches the renderer.
+- Minimal Turkish Record Board with 22 named v1 slots, group filters, completion count, expected-shape diagrams, managed thumbnails, record metadata, and manual choose/replace actions.
+- Windows unsigned package contains the required Sharp native runtime; packaged Sharp loading was verified independently. The inherited Smart App Control launch limitation remains unchanged.
+
+Evidence: 36 Vitest tests across 9 files, one real-Electron Playwright security test, strict typecheck, lint, formatting, builds, Windows packaging, and packaged Sharp verification pass. See `docs/gates/GATE-3-REPORT.md`.
+
+## 15. Lead-agent rules
 
 - Work one gate at a time and stop after producing its report.
 - Do not use subagents for Gates 3–6.
@@ -251,9 +267,9 @@ Accepted limitations:
 - Do not weaken validation or tests just to make a gate green.
 - Stop and ask only when a decision materially changes clinical meaning, data safety, or exporter architecture.
 
-## 15. Current non-blocking configuration defaults
+## 16. Current non-blocking configuration defaults
 
-These do not block Gate 2 planning:
+These do not block Gate 4 planning:
 
 - Turkish visible text only in v1.
 - JPEG/PNG media only.
@@ -262,7 +278,7 @@ These do not block Gate 2 planning:
 - TMJ form and worksheet supplied as images.
 - No Dolphin import in the critical path.
 
-## 16. Current handoff
+## 17. Current handoff
 
 Completed:
 
@@ -298,6 +314,6 @@ Remaining gate structure:
 
 The former Gate 10 optional modules are removed from v1.
 
-Next action: implement Gate 3 only, then stop before Gate 4.
+Next action: review and accept Gate 3. Gate 4 must not start without explicit acceptance.
 
 Residual risks: the replacement Windows/macOS Gate 2 CI run was not accepted as platform evidence; local Smart App Control prevents Windows packaged-launch evidence; macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.

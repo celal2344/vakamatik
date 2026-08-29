@@ -34,6 +34,10 @@ importers:
         version: 4.1.11(@types/node@24.10.1)(vite@8.2.2(@types/node@24.10.1)(jiti@2.7.0)(terser@5.51.2))
 
   apps/desktop:
+    dependencies:
+      sharp:
+        specifier: 0.34.4
+        version: 0.34.4
     devDependencies:
       '@electron-forge/cli':
         specifier: 7.11.2
@@ -59,9 +63,18 @@ importers:
       '@types/react-dom':
         specifier: 19.2.5
         version: 19.2.5(@types/react@19.2.18)
+      '@vakamatik/case-store':
+        specifier: workspace:*
+        version: link:../../packages/case-store
       '@vakamatik/desktop-contract':
         specifier: workspace:*
         version: link:../../packages/desktop-contract
+      '@vakamatik/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@vakamatik/media':
+        specifier: workspace:*
+        version: link:../../packages/media
       '@vitejs/plugin-react':
         specifier: 6.1.1
         version: 6.1.1(vite@8.2.2(@types/node@24.10.1)(jiti@2.7.0)(terser@5.51.2))
@@ -93,13 +106,48 @@ importers:
         specifier: 9.1.0
         version: 9.1.0
 
+  packages/case-store:
+    dependencies:
+      '@vakamatik/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@vakamatik/media':
+        specifier: workspace:*
+        version: link:../media
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+
   packages/desktop-contract:
+    dependencies:
+      '@vakamatik/domain':
+        specifier: workspace:*
+        version: link:../domain
+      zod:
+        specifier: 4.5.2
+        version: 4.5.2
+
+  packages/domain:
     dependencies:
       zod:
         specifier: 4.5.2
         version: 4.5.2
 
   packages/export-contract: {}
+
+  packages/media:
+    dependencies:
+      '@vakamatik/domain':
+        specifier: workspace:*
+        version: link:../domain
+      sharp:
+        specifier: 0.34.4
+        version: 0.34.4
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
 
   packages/pptx-exporter:
     dependencies:
