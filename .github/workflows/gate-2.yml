@@ -1,0 +1,42 @@
+name: Gate 2 desktop verification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: ${{ matrix.os }} desktop
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Static verification and unit tests
+        run: pnpm ci:verify
+      - name: Electron security smoke
+        run: pnpm test:electron
+      - name: Build unsigned package
+        run: pnpm package
+      - name: Launch packaged application
+        run: pnpm test:package-smoke

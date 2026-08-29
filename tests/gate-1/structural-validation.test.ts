@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join, resolve, sep } from "node:path";
 import { describe, expect, test } from "vitest";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -23,6 +24,7 @@ describe("generated Gate 1 PPTX structure", () => {
   test("passes the independent Open XML validator", () => {
     execFileSync("dotnet", ["run", "--project", "tools/pptx-validator/PptxValidator.csproj", "--", pptx, reportPath], {
       cwd: root,
+      env: { ...process.env, BaseOutputPath: `${join(tmpdir(), "vakamatik-dotnet")}${sep}` },
       stdio: "pipe",
       encoding: "utf8",
     });

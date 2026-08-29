@@ -1,0 +1,20 @@
+# Test matrix
+
+Last updated: 2026-08-29
+
+This matrix distinguishes local evidence from CI evidence. A pending cell is not a pass.
+
+| Area                                  | Windows local                              | Windows CI               | macOS CI                 | Evidence                                                                                                                                                                     |
+| ------------------------------------- | ------------------------------------------ | ------------------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frozen pnpm install                   | Pass                                       | Pending first pushed run | Pending first pushed run | `pnpm install --frozen-lockfile --force` completed with pnpm 10.17.1; CI uses the same lockfile without Corepack.                                                            |
+| Format, lint, strict typecheck, build | Pass                                       | Pending                  | Pending                  | Root `format:check`, `lint`, `typecheck`, and `build` commands.                                                                                                              |
+| Gate 1 regression suite               | Pass                                       | Pending                  | Pending                  | Included in 31 passing Vitest tests. Local Windows Application Control requires .NET build output outside the OneDrive tree; validation itself passed unchanged.             |
+| Gate 2 unit/security tests            | 18 pass                                    | Pending                  | Pending                  | Contract strictness, trusted origins, sender/frame rejection, protocol traversal/type allowlist, CSP/source baseline, fuses configuration, and no telemetry integrations.    |
+| Development Electron launch           | Pass                                       | Pending                  | Pending                  | Loopback Vite server and the real Electron shell launch and exit cleanly.                                                                                                    |
+| Electron launch/security smoke        | 1 pass                                     | Pending                  | Pending                  | Playwright launches the real shell and verifies bridge shape, absent Node globals, malformed-request rejection, navigation, popup, permission, CSP, and remote-fetch denial. |
+| Unsigned package build                | Pass, `win32-x64`                          | Pending                  | Pending                  | Electron Forge `package`.                                                                                                                                                    |
+| Packaged launch/exit                  | Blocked by Smart App Control               | Pending                  | Pending                  | Final unsigned executable was rejected by local policy ID `{0283ac0f-fff1-49ae-ada1-8a933130cad6}`; CI runs the unchanged smoke.                                             |
+| Packaged ASAR and Electron fuses      | Pass for ASAR and all eight known v1 fuses | Pending                  | Pending                  | Package smoke reads the final package and binary fuse wire before launch.                                                                                                    |
+| Manual macOS PowerPoint               | Deferred by Gate 1 exception               | Not applicable           | Not tested               | This remains a Gate 1 residual risk; it is not a substitute for Gate 2 macOS CI.                                                                                             |
+
+GitHub Actions runs installation, static verification, unit tests, Electron smoke, unsigned packaging, packaged launch, and fuse inspection on `windows-latest` and `macos-15-intel`.

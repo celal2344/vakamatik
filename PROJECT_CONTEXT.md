@@ -1,9 +1,9 @@
 # Orthodontic Case Presentation Builder — Project Context
 
-Status: Gate 1 accepted with a product-owner platform-testing exception  
-Version: 1.3  
-Date: 2026-08-29  
-Current gate: Gate 1 accepted; Gate 2 is next
+Status: Gate 2 implementation complete; pending product-owner/consultant acceptance
+Version: 1.4
+Date: 2026-08-29
+Current gate: Gate 2 implementation complete; Gate 3 is not started
 
 ## 1. Purpose of this file
 
@@ -201,9 +201,26 @@ Platform-testing exception:
 - macOS PowerPoint was not tested. Compatibility remains an unverified residual risk, not a Gate 1 failure.
 - When a macOS device becomes available, run `docs/gates/POWERPOINT-ACCEPTANCE-CHECKLIST.md`; any hard compatibility failure must reopen the exporter decision.
 
-Gate 2 is the next gate. This context update does not start Gate 2 implementation.
+Gate 1 remains accepted. Its macOS PowerPoint platform-testing exception remains an explicit residual risk.
 
-## 12. Test policy
+## 12. Gate 2 status
+
+Gate 2 implementation is complete and pending product-owner/consultant acceptance. Gate 3 has not started.
+
+Delivered foundation:
+
+- Exact-pinned Node.js 24.15.0 and pnpm 10.17.1 workspace using direct pnpm commands and a frozen lockfile.
+- Electron 44.0.0, Electron Forge 7.11.2, React 19.2.8, strict TypeScript 6.0.3, Vite, Vitest, Playwright, ESLint, and Prettier.
+- Separate main, preload, renderer, and shared contract packages.
+- Frozen `window.vakamatik` shell bridge with only `getAppInfo` and `ping`; strict runtime validation and sender/frame/origin checks.
+- Sandboxed renderer, context isolation, no Node integration, restrictive CSP, denied navigation/windows/webviews/permissions, and no external URL or telemetry path.
+- Restricted `vakamatik://app` protocol with traversal protection and an asset-type allowlist.
+- Unsigned Windows package, ASAR check, and fuse inspection passing locally; final unsigned launch is blocked by workstation Smart App Control and awaits Windows CI.
+- Windows and macOS GitHub Actions jobs for frozen install, verification, Electron smoke, unsigned packaging, fuse inspection, and packaged launch.
+
+Gate 2 evidence is recorded in `docs/gates/GATE-2-REPORT.md`, `docs/TEST_MATRIX.md`, and `docs/decisions/ADR-002-electron-shell-boundary.md`.
+
+## 13. Test policy
 
 - Vitest + fast-check: schemas, migrations, date math, units, semantic IDs, crop and transform invariants.
 - Integration tests: atomic save/recovery, locking, hash deduplication, media normalization, path safety.
@@ -215,7 +232,7 @@ Gate 2 is the next gate. This context update does not start Gate 2 implementatio
 - Manual PowerPoint acceptance on Windows and macOS when those environments are available; any product-owner exception must be explicit and leave the untested platform recorded as residual risk.
 - No real patient data in any automated test.
 
-## 13. Lead-agent rules
+## 14. Lead-agent rules
 
 - Work one gate at a time and stop after producing its report.
 - Freeze shared contracts before parallel subagent work.
@@ -227,7 +244,7 @@ Gate 2 is the next gate. This context update does not start Gate 2 implementatio
 - Add ADRs for architecture changes; do not rewrite settled context silently.
 - Stop and ask only when a decision materially changes clinical meaning, data safety, or exporter architecture.
 
-## 14. Current non-blocking configuration defaults
+## 15. Current non-blocking configuration defaults
 
 These do not block Gate 2 planning:
 
@@ -238,7 +255,7 @@ These do not block Gate 2 planning:
 - TMJ form and worksheet supplied as images.
 - No Dolphin import in the critical path.
 
-## 15. Current handoff
+## 16. Current handoff
 
 Completed:
 
@@ -256,6 +273,15 @@ Completed:
 - Exporter ADR and Gate 1 report.
 - Product-owner exception deferring unavailable macOS PowerPoint validation.
 
-Next action: prepare and explicitly authorize Gate 2 using the accepted Gate 1 contract and PptxGenJS exporter decision. Do not begin Gate 2 as part of the Gate 1 closure task.
+Gate 2 additions:
 
-Open Gate 1 blockers: none. Residual risk: macOS PowerPoint compatibility is unverified because testing was deferred by the product owner.
+- Normalized exact-pinned workspace and root commands without Corepack.
+- Frozen desktop bridge contract and security architecture ADR.
+- Minimal React shell and hardened Electron main/preload implementation.
+- Restricted application protocol, Electron fuses, and unsigned Forge packaging.
+- Gate 2 unit, source-security, Electron launch, and packaged-app smoke coverage.
+- Windows/macOS CI workflow and current Gate 2 report.
+
+Next action: review Gate 2 CI evidence and obtain explicit product-owner/consultant acceptance. Gate 3 is not started and must not begin without that acceptance.
+
+Open Gate 2 blockers: Windows and macOS GitHub Actions results are pending the first pushed run; Windows CI must run the final packaged-launch smoke because local Smart App Control rejects unsigned binaries. Residual risks: macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.

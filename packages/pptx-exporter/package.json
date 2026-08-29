@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --root ../.. packages/pptx-exporter",
-    "generate": "corepack pnpm@10.17.1 --filter @vakamatik/test-fixtures build && corepack pnpm@10.17.1 --filter @vakamatik/test-fixtures generate && node dist/generate.js"
+    "generate": "pnpm --filter @vakamatik/test-fixtures build && pnpm --filter @vakamatik/test-fixtures generate && node dist/generate.js"
   },
   "dependencies": {
     "@vakamatik/export-contract": "workspace:*",

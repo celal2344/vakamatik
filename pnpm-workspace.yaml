@@ -1,5 +1,8 @@
 packages:
+  - "apps/*"
   - "packages/*"
 
 onlyBuiltDependencies:
+  - electron
+  - electron-winstaller
   - sharp

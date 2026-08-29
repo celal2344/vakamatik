@@ -1,23 +1,41 @@
 {
   "name": "orthodontic-case-builder",
-  "version": "0.0.0-gate-1",
+  "version": "0.0.0-gate-2",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.17.1",
   "engines": {
     "node": "24.15.0"
   },
   "scripts": {
-    "build": "corepack pnpm@10.17.1 -r build",
-    "typecheck": "corepack pnpm@10.17.1 -r typecheck",
+    "dev": "pnpm --filter @vakamatik/desktop dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write .",
     "test": "vitest run",
+    "test:unit": "vitest run --exclude tests/gate-1/powerpoint-render.test.ts",
+    "test:electron-dev": "node tools/electron/dev-smoke.mjs",
+    "test:electron": "pnpm test:electron-dev && pnpm --filter @vakamatik/desktop build && playwright test --config tests/gate-2/playwright.config.ts",
+    "test:package-smoke": "node tools/electron/package-smoke.mjs",
     "test:update-goldens": "vitest run --update",
-    "gate1": "corepack pnpm@10.17.1 build && corepack pnpm@10.17.1 generate:gate1 && corepack pnpm@10.17.1 validate:gate1 && corepack pnpm@10.17.1 test",
-    "generate:gate1": "corepack pnpm@10.17.1 --filter @vakamatik/pptx-exporter generate",
+    "package": "pnpm --filter @vakamatik/desktop package",
+    "make": "pnpm --filter @vakamatik/desktop make",
+    "ci:verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm build",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:electron && pnpm package && pnpm test:package-smoke",
+    "gate1": "pnpm build && pnpm generate:gate1 && pnpm validate:gate1 && pnpm test",
+    "generate:gate1": "pnpm --filter @vakamatik/pptx-exporter generate",
     "validate:gate1": "dotnet run --project tools/pptx-validator/PptxValidator.csproj -- artifacts/gate-1/gate-1-spike.pptx artifacts/gate-1/validation/structure-report.json"
   },
   "devDependencies": {
+    "@electron/fuses": "1.8.0",
+    "@playwright/test": "1.62.1",
     "@types/node": "24.10.1",
-    "typescript": "7.0.2",
+    "eslint": "10.9.1",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.68.0",
     "vitest": "4.1.11"
   }
 }

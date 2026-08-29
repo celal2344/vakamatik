@@ -4,6 +4,11 @@ bin/
 obj/
 .pnpm-store/
 TestResults/
+coverage/
+test-results/
+playwright-report/
+.vite/
+out/
 # Supplied clinical/reference files stay local and must never be committed.
 resources/
 artifacts/gate-1/manual-edited/
