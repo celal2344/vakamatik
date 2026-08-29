@@ -1,9 +1,9 @@
 # Orthodontic Case Presentation Builder — Project Context
 
-Status: Gate 2 implementation complete; pending product-owner/consultant acceptance
-Version: 1.5
+Status: Gate 2 accepted; Gate 3 authorized
+Version: 1.6
 Date: 2026-08-30
-Current gate: Gate 2 implementation complete; Gate 3 is not started
+Current gate: Gate 3 — Core cases
 
 ## 1. Purpose of this file
 
@@ -205,7 +205,7 @@ Gate 1 remains accepted. Its macOS PowerPoint platform-testing exception remains
 
 ## 12. Gate 2 status
 
-Gate 2 implementation is complete and pending product-owner/consultant acceptance. Gate 3 has not started.
+Gate 2 is accepted by the product owner with the documented platform limitations. Gate 3 is authorized.
 
 Delivered foundation:
 
@@ -220,6 +220,12 @@ Delivered foundation:
 - Cross-platform Gate 2 CI acceptance was deferred by the product owner on 2026-08-30 to close the implementation without waiting for the platform jobs. This is an unverified residual risk, not a claimed pass.
 
 Gate 2 evidence is recorded in `docs/gates/GATE-2-REPORT.md`, `docs/TEST_MATRIX.md`, and `docs/decisions/ADR-002-electron-shell-boundary.md`.
+
+Accepted limitations:
+
+- Packaged Windows launch was blocked by Smart App Control and is not claimed as passed.
+- Cross-platform CI acceptance was deferred and is not claimed as passed.
+- Windows packaging, ASAR inspection, fuse checks, 31 Vitest tests, and the Electron Playwright test passed.
 
 ## 13. Test policy
 
@@ -236,13 +242,13 @@ Gate 2 evidence is recorded in `docs/gates/GATE-2-REPORT.md`, `docs/TEST_MATRIX.
 ## 14. Lead-agent rules
 
 - Work one gate at a time and stop after producing its report.
-- Freeze shared contracts before parallel subagent work.
-- Use at most two implementation subagents concurrently unless file ownership is completely disjoint.
-- Give every subagent exact directories, deliverables, tests, and non-goals.
-- The lead reviews diffs and reruns tests; a subagent report is not acceptance.
+- Do not use subagents for Gates 3–6.
+- Avoid speculative abstractions and unrelated refactors.
+- Add only essential tests.
+- Do not create ADRs unless an actual architectural decision requires one.
+- Update only this file and one short gate report for each future gate.
+- After two unsuccessful attempts at the same blocker, stop and report it.
 - Do not weaken validation or tests just to make a gate green.
-- Update this file and `docs/gates/GATE-N-REPORT.md` at the end of every accepted gate.
-- Add ADRs for architecture changes; do not rewrite settled context silently.
 - Stop and ask only when a decision materially changes clinical meaning, data safety, or exporter architecture.
 
 ## 15. Current non-blocking configuration defaults
@@ -283,6 +289,15 @@ Gate 2 additions:
 - Gate 2 unit, source-security, Electron launch, and packaged-app smoke coverage.
 - Windows/macOS CI workflow and current Gate 2 report.
 
-Next action: obtain explicit product-owner/consultant acceptance of Gate 2, including the documented cross-platform CI exception. Gate 3 is not started and must not begin without that acceptance.
+Remaining gate structure:
 
-Open Gate 2 blockers: product-owner/consultant acceptance only. Residual risks: the replacement Windows/macOS Gate 2 CI run was not awaited as part of closure; local Smart App Control prevents Windows packaged-launch evidence; macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.
+- Gate 3 — Core cases: case schema, local saving, image import, and Record Board.
+- Gate 4 — Presentation builder: shared layout/preview/export system and all required slides.
+- Gate 5 — Clinical editing: alignment, measurements, diagnosis, treatment plan, notes, and usability.
+- Gate 6 — Final release: recovery checks, essential regression tests, packaging, and pilot readiness.
+
+The former Gate 10 optional modules are removed from v1.
+
+Next action: implement Gate 3 only, then stop before Gate 4.
+
+Residual risks: the replacement Windows/macOS Gate 2 CI run was not accepted as platform evidence; local Smart App Control prevents Windows packaged-launch evidence; macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.

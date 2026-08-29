@@ -1,7 +1,7 @@
 # Gate 2 report: Workspace and hardened Electron shell
 
 Date: 2026-08-30
-Status: Implementation complete; pending product-owner/consultant acceptance
+Status: Accepted by product owner with documented limitations
 Gate 3: Not started
 
 ## Delivered scope
@@ -147,6 +147,6 @@ Gate 1 source, artifacts, tests, exporter selection, and clinical/reference excl
 3. The frozen bridge remains narrow; any Gate 3 filesystem capability begins with a new named contract and runtime schemas.
 4. Gate 3 scope and acceptance criteria are explicitly authorized.
 
-## Recommendation
+## Acceptance
 
-Gate 2 implementation is complete and ready for product-owner/consultant review under the explicit cross-platform CI exception. Gate 3 has not started and must not start without explicit acceptance.
+The product owner accepted Gate 2 on 2026-08-30 with the Smart App Control and deferred cross-platform CI limitations recorded above. Neither packaged Windows launch nor cross-platform CI is claimed as passed. Gate 3 is authorized.
