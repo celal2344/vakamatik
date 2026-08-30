@@ -35,6 +35,30 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@vakamatik/case-store':
+        specifier: workspace:*
+        version: link:../../packages/case-store
+      '@vakamatik/desktop-contract':
+        specifier: workspace:*
+        version: link:../../packages/desktop-contract
+      '@vakamatik/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@vakamatik/export-contract':
+        specifier: workspace:*
+        version: link:../../packages/export-contract
+      '@vakamatik/layout-engine':
+        specifier: workspace:*
+        version: link:../../packages/layout-engine
+      '@vakamatik/media':
+        specifier: workspace:*
+        version: link:../../packages/media
+      '@vakamatik/pptx-exporter':
+        specifier: workspace:*
+        version: link:../../packages/pptx-exporter
+      '@vakamatik/preview':
+        specifier: workspace:*
+        version: link:../../packages/preview
       sharp:
         specifier: 0.34.4
         version: 0.34.4
@@ -63,18 +87,6 @@ importers:
       '@types/react-dom':
         specifier: 19.2.5
         version: 19.2.5(@types/react@19.2.18)
-      '@vakamatik/case-store':
-        specifier: workspace:*
-        version: link:../../packages/case-store
-      '@vakamatik/desktop-contract':
-        specifier: workspace:*
-        version: link:../../packages/desktop-contract
-      '@vakamatik/domain':
-        specifier: workspace:*
-        version: link:../../packages/domain
-      '@vakamatik/media':
-        specifier: workspace:*
-        version: link:../../packages/media
       '@vitejs/plugin-react':
         specifier: 6.1.1
         version: 6.1.1(vite@8.2.2(@types/node@24.10.1)(jiti@2.7.0)(terser@5.51.2))
@@ -124,6 +136,9 @@ importers:
       '@vakamatik/domain':
         specifier: workspace:*
         version: link:../domain
+      '@vakamatik/export-contract':
+        specifier: workspace:*
+        version: link:../export-contract
       zod:
         specifier: 4.5.2
         version: 4.5.2
@@ -135,6 +150,12 @@ importers:
         version: 4.5.2
 
   packages/export-contract: {}
+
+  packages/layout-engine:
+    dependencies:
+      '@vakamatik/export-contract':
+        specifier: workspace:*
+        version: link:../export-contract
 
   packages/media:
     dependencies:
@@ -167,6 +188,16 @@ importers:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@24.10.1)(vite@8.2.2(@types/node@24.10.1)(jiti@2.7.0)(terser@5.51.2))
+
+  packages/preview:
+    dependencies:
+      '@vakamatik/export-contract':
+        specifier: workspace:*
+        version: link:../export-contract
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
 
   packages/test-fixtures:
     dependencies:

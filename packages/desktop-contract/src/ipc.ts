@@ -7,6 +7,9 @@ import type {
   CaseOpenRequest,
   CaseSaveRequest,
   CaseView,
+  PresentationExportResult,
+  PresentationRequest,
+  PresentationView,
   ShellAppInfo,
   ShellGetAppInfoRequest,
   ShellPingRequest,
@@ -21,6 +24,8 @@ export const DESKTOP_IPC_CHANNELS = {
   saveCase: "vakamatik:case:save",
   closeCase: "vakamatik:case:close",
   importCaseImage: "vakamatik:case:import-image",
+  getPresentation: "vakamatik:presentation:get",
+  exportPresentation: "vakamatik:presentation:export",
 } as const;
 
 export interface DesktopIpcOperationMap {
@@ -51,5 +56,13 @@ export interface DesktopIpcOperationMap {
   readonly [DESKTOP_IPC_CHANNELS.importCaseImage]: {
     readonly request: CaseImportImageRequest;
     readonly response: CaseDialogResult;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.getPresentation]: {
+    readonly request: PresentationRequest;
+    readonly response: PresentationView;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.exportPresentation]: {
+    readonly request: PresentationRequest;
+    readonly response: PresentationExportResult;
   };
 }

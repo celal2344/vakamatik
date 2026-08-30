@@ -4,6 +4,7 @@ import {
   DESKTOP_GLOBAL_KEY,
   caseCreateRequestSchema,
   caseImportImageRequestSchema,
+  presentationRequestSchema,
   shellAppInfoSchema,
   shellGetAppInfoRequestSchema,
   shellPingRequestSchema,
@@ -23,6 +24,8 @@ describe("documented desktop bridge contract", () => {
       "saveCase",
       "closeCase",
       "importCaseImage",
+      "getPresentation",
+      "exportPresentation",
     ]);
   });
 
@@ -37,6 +40,13 @@ describe("documented desktop bridge contract", () => {
         caseId: "not-a-uuid",
         revision: 0,
         slotId: "../../outside",
+      }),
+    ).toThrow();
+    expect(() =>
+      presentationRequestSchema.parse({
+        caseId: "not-a-uuid",
+        revision: 0,
+        path: "C:/secret",
       }),
     ).toThrow();
   });

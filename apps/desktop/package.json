@@ -1,13 +1,21 @@
 {
   "name": "@vakamatik/desktop",
   "productName": "Vakamatik",
-  "version": "0.0.0-gate-3",
+  "version": "0.0.0-gate-4",
   "description": "Offline orthodontic case presentation builder",
   "author": "Vakamatik",
   "private": true,
   "type": "module",
   "main": ".vite/build/main.cjs",
   "dependencies": {
+    "@vakamatik/case-store": "workspace:*",
+    "@vakamatik/desktop-contract": "workspace:*",
+    "@vakamatik/domain": "workspace:*",
+    "@vakamatik/export-contract": "workspace:*",
+    "@vakamatik/layout-engine": "workspace:*",
+    "@vakamatik/media": "workspace:*",
+    "@vakamatik/pptx-exporter": "workspace:*",
+    "@vakamatik/preview": "workspace:*",
     "sharp": "0.34.4"
   },
   "scripts": {
@@ -31,10 +39,6 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "6.1.1",
-    "@vakamatik/case-store": "workspace:*",
-    "@vakamatik/desktop-contract": "workspace:*",
-    "@vakamatik/domain": "workspace:*",
-    "@vakamatik/media": "workspace:*",
     "concurrently": "10.0.5",
     "cross-env": "10.1.0",
     "electron": "44.0.0",

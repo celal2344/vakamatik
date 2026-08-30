@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, protocol, session } from "electron";
 import {
@@ -19,13 +19,24 @@ import {
   caseOpenRequestSchema,
   caseSaveRequestSchema,
   caseViewSchema,
+  presentationExportResultSchema,
+  presentationRequestSchema,
+  semanticSlideIdSchema,
+  presentationViewSchema,
   shellAppInfoSchema,
   shellGetAppInfoRequestSchema,
   shellPingRequestSchema,
   shellPingResponseSchema,
 } from "@vakamatik/desktop-contract";
 import { DESKTOP_IPC_CHANNELS } from "@vakamatik/desktop-contract/ipc";
-import { readThumbnailDataUrl } from "@vakamatik/media";
+import {
+  buildPresentationDocument,
+  CANONICAL_SLIDES,
+  type PresentationAssetKey,
+} from "@vakamatik/layout-engine";
+import { readThumbnailDataUrl, resolveManagedRelativePath } from "@vakamatik/media";
+import { PptxGenJsExporter } from "@vakamatik/pptx-exporter";
+import { renderPresentationPreviews } from "@vakamatik/preview";
 import { assertTrustedIpcSender, isTrustedRendererUrl, resolveApplicationAsset } from "./security.js";
 
 const CONTENT_SECURITY_POLICY = [
@@ -133,6 +144,53 @@ async function toCaseView(opened: OpenManagedCase) {
   });
 }
 
+async function buildActivePresentation(opened: OpenManagedCase) {
+  const entries = await Promise.all(
+    Object.entries(opened.document.assignments).map(async ([slotId, assetId]) => {
+      const asset = opened.document.assets[assetId];
+      if (asset === undefined) throw new Error("Assigned presentation asset is missing.");
+      return [
+        slotId as PresentationAssetKey,
+        {
+          assetId: asset.assetId,
+          filePath: await resolveManagedRelativePath(opened.root, asset.normalizedRelativePath, {
+            mustExist: true,
+          }),
+          previewFilePath: await resolveManagedRelativePath(opened.root, asset.thumbnailRelativePath, {
+            mustExist: true,
+          }),
+          widthPx: asset.width,
+          heightPx: asset.height,
+        },
+      ] as const;
+    }),
+  );
+  return buildPresentationDocument({
+    title: opened.document.title,
+    assets: Object.fromEntries(entries),
+  });
+}
+
+async function toPresentationView(opened: OpenManagedCase) {
+  const built = await buildActivePresentation(opened);
+  const previews = await renderPresentationPreviews(built.document);
+  const titleById = new Map(CANONICAL_SLIDES.map(([id, title]) => [id, title]));
+  return presentationViewSchema.parse({
+    caseId: opened.document.caseId,
+    revision: opened.document.revision,
+    slides: previews.map((preview, index) => {
+      const semanticSlideId = semanticSlideIdSchema.parse(preview.semanticId);
+      return {
+        semanticSlideId,
+        displayNumber: index + 1,
+        title: titleById.get(semanticSlideId) ?? semanticSlideId,
+        previewDataUrl: preview.svgDataUrl,
+      };
+    }),
+    warnings: built.warnings,
+  });
+}
+
 function registerIpcHandlers(window: BrowserWindow): void {
   for (const channel of Object.values(DESKTOP_IPC_CHANNELS)) ipcMain.removeHandler(channel);
   let activeCase: OpenManagedCase | undefined;
@@ -231,11 +289,59 @@ function registerIpcHandlers(window: BrowserWindow): void {
       throw new Error("Image import failed.");
     }
   });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.getPresentation, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = presentationRequestSchema.parse(request);
+    try {
+      return await toPresentationView(requireActiveCase(activeCase, parsed.caseId, parsed.revision));
+    } catch {
+      throw new Error("Presentation preview failed.");
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.exportPresentation, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = presentationRequestSchema.parse(request);
+    const opened = requireActiveCase(activeCase, parsed.caseId, parsed.revision);
+    const exportsDirectory = path.join(opened.root, "exports");
+    await mkdir(exportsDirectory, { recursive: true });
+    const safeTitle =
+      opened.document.title.replaceAll(/[<>:"/\\|?*\u0000-\u001F]/gu, "-").trim() || "vakamatik-sunum";
+    const selection = await dialog.showSaveDialog(window, {
+      title: "PowerPoint sunumunu dışa aktar",
+      buttonLabel: "PowerPoint oluştur",
+      defaultPath: path.join(exportsDirectory, `${safeTitle}.pptx`),
+      filters: [{ name: "PowerPoint", extensions: ["pptx"] }],
+    });
+    if (selection.canceled || selection.filePath === "") {
+      return presentationExportResultSchema.parse({ status: "cancelled" });
+    }
+    try {
+      const built = await buildActivePresentation(opened);
+      const result = await new PptxGenJsExporter().export(built.document, selection.filePath);
+      if (!result.validation.ok) throw new Error("Presentation validation failed.");
+      return presentationExportResultSchema.parse({
+        status: "ok",
+        fileName: path.basename(selection.filePath),
+        slideCount: built.document.slides.length,
+      });
+    } catch {
+      throw new Error("Presentation export failed.");
+    }
+  });
 }
 
-function requireActiveCase(activeCase: OpenManagedCase | undefined, caseId: string): OpenManagedCase {
+function requireActiveCase(
+  activeCase: OpenManagedCase | undefined,
+  caseId: string,
+  revision?: number,
+): OpenManagedCase {
   if (activeCase === undefined || activeCase.document.caseId !== caseId) {
     throw new Error("Requested case is not active.");
+  }
+  if (revision !== undefined && activeCase.document.revision !== revision) {
+    throw new Error("Requested case revision is stale.");
   }
   return activeCase;
 }

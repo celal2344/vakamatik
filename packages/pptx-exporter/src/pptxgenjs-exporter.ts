@@ -12,7 +12,10 @@ import type {
   TextElement,
   TextStyle,
 } from "@vakamatik/export-contract";
-import { POWERPOINT_POINTS_PER_INCH } from "@vakamatik/export-contract";
+import {
+  POWERPOINT_POINTS_PER_INCH,
+  calculatePlacedImageBounds,
+} from "@vakamatik/export-contract";
 import pptxgenjsModule from "pptxgenjs";
 import { validateSlideDocument } from "./overflow.js";
 
@@ -88,12 +91,13 @@ function addLine(presentation: PptxPresentationFacade, slide: PptxSlideFacade, e
 }
 
 function transformedImageBounds(element: ImageElement): { x: number; y: number; w: number; h: number } {
-  const { bounds, transform } = element;
-  const widthPt = bounds.widthPt * transform.uniformScale;
-  const heightPt = bounds.heightPt * transform.uniformScale;
-  const xPt = bounds.xPt + transform.translationXPt - (widthPt - bounds.widthPt) / 2;
-  const yPt = bounds.yPt + transform.translationYPt - (heightPt - bounds.heightPt) / 2;
-  return { x: ptToIn(xPt), y: ptToIn(yPt), w: ptToIn(widthPt), h: ptToIn(heightPt) };
+  const bounds = calculatePlacedImageBounds(element);
+  return {
+    x: ptToIn(bounds.xPt),
+    y: ptToIn(bounds.yPt),
+    w: ptToIn(bounds.widthPt),
+    h: ptToIn(bounds.heightPt),
+  };
 }
 
 function explicitCropSizing(element: ImageElement, widthIn: number, heightIn: number): Record<string, unknown> {
@@ -151,7 +155,7 @@ function addImage(slide: PptxSlideFacade, element: ImageElement): void {
     path: element.source.filePath,
     ...sourceBounds,
     objectName: element.id,
-    altText: `Synthetic Gate 1 fixture: ${element.source.assetId}`,
+    altText: `Vakamatik managed asset: ${element.source.assetId}`,
     sizing,
     rotate: element.transform.rotationDeg,
     transparency: Math.round((1 - element.transform.opacity) * 100_000) / 1_000,
@@ -240,12 +244,12 @@ export class PptxGenJsExporter implements Exporter {
     }
 
     const presentation = new PptxGenJSConstructor();
-    presentation.defineLayout({ name: "VAKAMATIK_GATE_1_4X3", width: 10, height: 7.5 });
-    presentation.layout = "VAKAMATIK_GATE_1_4X3";
-    presentation.author = "Vakamatik Gate 1";
+    presentation.defineLayout({ name: "VAKAMATIK_4X3", width: 10, height: 7.5 });
+    presentation.layout = "VAKAMATIK_4X3";
+    presentation.author = "Vakamatik";
     presentation.company = "Vakamatik";
-    presentation.subject = "Synthetic PowerPoint fidelity spike";
-    presentation.title = "Orthodontic Case Builder — Gate 1 synthetic spike";
+    presentation.subject = "Editable orthodontic case presentation";
+    presentation.title = "Vakamatik case presentation";
     presentation.theme = {
       headFontFace: "Arial",
       bodyFontFace: "Arial",

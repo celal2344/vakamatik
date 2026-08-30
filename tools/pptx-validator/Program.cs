@@ -8,21 +8,26 @@ using System.Xml.Linq;
 const long ExpectedWidthEmu = 9_144_000;
 const long ExpectedHeightEmu = 6_858_000;
 const long EmuPerPoint = 12_700;
-string[] expectedOrder = [
+string[] gate1Order = [
     "dental_frontal_comparison",
     "ceph_profile_overlay",
     "ceph_vertical",
     "problem_goal_plan"
 ];
 
-if (args.Length is < 1 or > 2)
+if (args.Length is < 1 or > 3)
 {
-    Console.Error.WriteLine("Usage: PptxValidator <presentation.pptx> [report.json]");
+    Console.Error.WriteLine("Usage: PptxValidator <presentation.pptx> [report.json] [comma-separated-semantic-order]");
     return 2;
 }
 
+var expectedOrder = args.Length == 3
+    ? args[2].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    : gate1Order;
+var gate1Mode = args.Length < 3;
+
 var input = Path.GetFullPath(args[0]);
-var output = Path.GetFullPath(args.Length == 2 ? args[1] : Path.ChangeExtension(input, ".validation.json"));
+var output = Path.GetFullPath(args.Length >= 2 ? args[1] : Path.ChangeExtension(input, ".validation.json"));
 var checks = new List<Check>();
 var slideReports = new List<SlideReport>();
 
@@ -67,7 +72,8 @@ try
         .Select(id => ResolvePart("ppt/presentation.xml", targets[id!]))
         .ToArray();
 
-    Add("slide-count", slidePaths.Length == 4, $"Found {slidePaths.Length} slides; expected exactly four.");
+    Add("slide-count", slidePaths.Length == expectedOrder.Length,
+        $"Found {slidePaths.Length} slides; expected {expectedOrder.Length}.");
     var semanticIds = new List<string>();
     var allText = new StringBuilder();
     for (var index = 0; index < slidePaths.Length; index++)
@@ -139,14 +145,22 @@ try
 
     Add("semantic-order", semanticIds.SequenceEqual(expectedOrder),
         $"Semantic order: {string.Join(", ", semanticIds)}.");
-    Add("native-text", slideReports.ElementAtOrDefault(0)?.NativeTextShapeCount > 0
-        && slideReports.ElementAtOrDefault(2) is { NativeTextShapeCount: > 0, NativeTableCount: > 0 }
-        && slideReports.ElementAtOrDefault(3)?.NativeTableCount > 0,
-        "Native text boxes remain on dental_frontal_comparison and ceph_vertical; native table-cell text remains on ceph_vertical and problem_goal_plan. The overlay intentionally contains images only.");
-    Add("native-tables", slideReports.ElementAtOrDefault(2)?.NativeTableCount > 0 && slideReports.ElementAtOrDefault(3)?.NativeTableCount > 0,
-        "Slides ceph_vertical and problem_goal_plan contain native DrawingML tables.");
-    Add("speaker-notes", slideReports.ElementAtOrDefault(2)?.HasSpeakerNotes == true,
-        "Speaker notes relationship exists on ceph_vertical.");
+    Add("native-text", gate1Mode
+        ? slideReports.ElementAtOrDefault(0)?.NativeTextShapeCount > 0
+            && slideReports.ElementAtOrDefault(2) is { NativeTextShapeCount: > 0, NativeTableCount: > 0 }
+            && slideReports.ElementAtOrDefault(3)?.NativeTableCount > 0
+        : slideReports.Any(slide => slide.NativeTextShapeCount > 0),
+        gate1Mode
+            ? "Native text boxes remain on dental_frontal_comparison and ceph_vertical; native table-cell text remains on ceph_vertical and problem_goal_plan."
+            : "The presentation contains native editable text.");
+    Add("native-tables", gate1Mode
+        ? slideReports.ElementAtOrDefault(2)?.NativeTableCount > 0 && slideReports.ElementAtOrDefault(3)?.NativeTableCount > 0
+        : slideReports.Any(slide => slide.NativeTableCount > 0),
+        gate1Mode
+            ? "Slides ceph_vertical and problem_goal_plan contain native DrawingML tables."
+            : "The presentation contains native editable tables.");
+    Add("speaker-notes", !gate1Mode || slideReports.ElementAtOrDefault(2)?.HasSpeakerNotes == true,
+        gate1Mode ? "Speaker notes relationship exists on ceph_vertical." : "Speaker notes are optional for this generated case.");
     var allImages = slideReports.SelectMany(s => s.Images).ToArray();
     Add("image-crop-represented", allImages.Any(i => i.HasCrop), "At least one image has DrawingML crop values.");
     static bool ValidCrop(CropReport? crop) => crop is not null && crop.Left is >= 0 and <= 100_000 && crop.Top is >= 0 and <= 100_000

@@ -9,6 +9,9 @@ import {
   caseOpenRequestSchema,
   caseSaveRequestSchema,
   caseViewSchema,
+  presentationExportResultSchema,
+  presentationRequestSchema,
+  presentationViewSchema,
   shellAppInfoSchema,
   shellGetAppInfoRequestSchema,
   shellPingRequestSchema,
@@ -19,6 +22,7 @@ import {
   type CaseImportImageRequest,
   type CaseOpenRequest,
   type CaseSaveRequest,
+  type PresentationRequest,
   type VakamatikDesktopApi,
 } from "@vakamatik/desktop-contract";
 import { DESKTOP_IPC_CHANNELS } from "@vakamatik/desktop-contract/ipc";
@@ -61,6 +65,22 @@ const desktopApi: VakamatikDesktopApi = Object.freeze({
       validatedRequest,
     );
     return caseDialogResultSchema.parse(response);
+  },
+  getPresentation: async (request: PresentationRequest) => {
+    const validatedRequest = presentationRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.getPresentation,
+      validatedRequest,
+    );
+    return presentationViewSchema.parse(response);
+  },
+  exportPresentation: async (request: PresentationRequest) => {
+    const validatedRequest = presentationRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.exportPresentation,
+      validatedRequest,
+    );
+    return presentationExportResultSchema.parse(response);
   },
 });
 

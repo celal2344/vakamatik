@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { assetIdSchema, caseIdSchema, recordSlotIdSchema } from "@vakamatik/domain";
+import { CANONICAL_SLIDE_ORDER } from "@vakamatik/export-contract";
 
 export const DESKTOP_GLOBAL_KEY = "vakamatik" as const;
 export const DESKTOP_APP_SCHEME = "vakamatik" as const;
@@ -95,6 +96,55 @@ export type CaseImportImageRequest = z.infer<typeof caseImportImageRequestSchema
 export type CaseDialogResult = z.infer<typeof caseDialogResultSchema>;
 export type CaseCloseResponse = z.infer<typeof caseCloseResponseSchema>;
 
+export const semanticSlideIdSchema = z.enum(CANONICAL_SLIDE_ORDER);
+export const presentationRequestSchema = z
+  .object({
+    caseId: caseIdSchema,
+    revision: z.number().int().nonnegative(),
+  })
+  .strict();
+export const presentationWarningSchema = z
+  .object({
+    semanticSlideId: semanticSlideIdSchema,
+    targetKey: z.string().min(1).max(160),
+    message: z.string().min(1).max(240),
+  })
+  .strict();
+export const presentationSlideViewSchema = z
+  .object({
+    semanticSlideId: semanticSlideIdSchema,
+    displayNumber: z.number().int().positive(),
+    title: z.string().min(1).max(120),
+    previewDataUrl: z.string().startsWith("data:image/svg+xml;base64,"),
+  })
+  .strict();
+export const presentationViewSchema = z
+  .object({
+    caseId: caseIdSchema,
+    revision: z.number().int().nonnegative(),
+    slides: z.array(presentationSlideViewSchema).min(1).max(35),
+    warnings: z.array(presentationWarningSchema),
+  })
+  .strict();
+export const presentationExportResultSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("cancelled") }).strict(),
+  z
+    .object({
+      status: z.literal("ok"),
+      fileName: z
+        .string()
+        .min(1)
+        .max(180)
+        .refine((value) => !/[\\/]/u.test(value)),
+      slideCount: z.number().int().positive().max(35),
+    })
+    .strict(),
+]);
+
+export type PresentationRequest = z.infer<typeof presentationRequestSchema>;
+export type PresentationView = z.infer<typeof presentationViewSchema>;
+export type PresentationExportResult = z.infer<typeof presentationExportResultSchema>;
+
 export interface VakamatikDesktopApi {
   readonly getAppInfo: () => Promise<ShellAppInfo>;
   readonly ping: (request: ShellPingRequest) => Promise<ShellPingResponse>;
@@ -103,4 +153,6 @@ export interface VakamatikDesktopApi {
   readonly saveCase: (request: CaseSaveRequest) => Promise<CaseView>;
   readonly closeCase: (request: CaseCloseRequest) => Promise<CaseCloseResponse>;
   readonly importCaseImage: (request: CaseImportImageRequest) => Promise<CaseDialogResult>;
+  readonly getPresentation: (request: PresentationRequest) => Promise<PresentationView>;
+  readonly exportPresentation: (request: PresentationRequest) => Promise<PresentationExportResult>;
 }

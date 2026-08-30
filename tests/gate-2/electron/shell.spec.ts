@@ -45,7 +45,17 @@ test("hardened shell launches with only its documented bridge", async () => {
     });
 
     expect(boundary).toEqual({
-      apiKeys: ["closeCase", "createCase", "getAppInfo", "importCaseImage", "openCase", "ping", "saveCase"],
+      apiKeys: [
+        "closeCase",
+        "createCase",
+        "exportPresentation",
+        "getAppInfo",
+        "getPresentation",
+        "importCaseImage",
+        "openCase",
+        "ping",
+        "saveCase",
+      ],
       hasBuffer: false,
       hasGenericInvoke: false,
       hasProcess: false,

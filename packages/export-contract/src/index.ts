@@ -15,8 +15,47 @@ export const GATE_1_SLIDE_ORDER = [
   "problem_goal_plan",
 ] as const;
 
+export const CANONICAL_SLIDE_ORDER = [
+  "case_overview",
+  "extraoral_front_rest",
+  "extraoral_front_smile",
+  "extraoral_front_profile_rest",
+  "extraoral_profile_rest_smile",
+  "extraoral_three_quarter",
+  "lip_tooth_relationship",
+  "extraoral_retractor_pair",
+  "dental_frontal_comparison",
+  "dental_right_comparison",
+  "dental_left_comparison",
+  "occlusal_photos_space_analysis",
+  "models_space_analysis",
+  "intraoral_montage",
+  "model_montage",
+  "inferior_comparison",
+  "cervical_maturation",
+  "patient_video",
+  "panoramic_missing_teeth",
+  "panoramic_restorative_findings",
+  "tmj_review",
+  "ceph_profile_overlay",
+  "ceph_lateral",
+  "ceph_tracing",
+  "ceph_vertical",
+  "ceph_sagittal",
+  "ceph_incisor",
+  "ceph_soft_tissue",
+  "analysis_summary",
+  "diagnostic_photo_montage",
+  "diagnostic_model_montage",
+  "problem_goal_plan",
+  "case_decision",
+  "icon_index",
+  "space_analysis_worksheet",
+] as const;
+
 export type Gate1SemanticSlideId = (typeof GATE_1_SLIDE_ORDER)[number];
-export type SemanticSlideId = Gate1SemanticSlideId | (string & {});
+export type CanonicalSemanticSlideId = (typeof CANONICAL_SLIDE_ORDER)[number];
+export type SemanticSlideId = CanonicalSemanticSlideId | (string & {});
 
 export interface SlideSize {
   readonly widthPt: number;
@@ -103,6 +142,7 @@ export interface ImageElement extends ElementBase {
   readonly source: {
     readonly assetId: string;
     readonly filePath: string;
+    readonly previewFilePath?: string;
     readonly widthPx: number;
     readonly heightPx: number;
   };
@@ -110,6 +150,23 @@ export interface ImageElement extends ElementBase {
   readonly crop?: NormalizedCrop;
   readonly transform: ImageTransform;
   readonly lockAspectRatio: true;
+}
+
+export function calculatePlacedImageBounds(element: ImageElement): PointBounds {
+  const widthPt = element.bounds.widthPt * element.transform.uniformScale;
+  const heightPt = element.bounds.heightPt * element.transform.uniformScale;
+  return {
+    xPt:
+      element.bounds.xPt +
+      element.transform.translationXPt -
+      (widthPt - element.bounds.widthPt) / 2,
+    yPt:
+      element.bounds.yPt +
+      element.transform.translationYPt -
+      (heightPt - element.bounds.heightPt) / 2,
+    widthPt,
+    heightPt,
+  };
 }
 
 export type SlideElement = TextElement | LineElement | TableElement | ImageElement;

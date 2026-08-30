@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { RECORD_SLOTS, type RecordSlotId } from "@vakamatik/domain";
-import type { CaseView, ShellAppInfo } from "@vakamatik/desktop-contract";
+import type { CaseView, PresentationView, ShellAppInfo } from "@vakamatik/desktop-contract";
 
 type RecordGroup = (typeof RECORD_SLOTS)[number]["group"];
 type Filter = "all" | RecordGroup;
@@ -26,6 +26,7 @@ function BrandMark(): ReactNode {
 function Navigation(): ReactNode {
   const items = [
     { to: "/", label: "Kayıt panosu", end: true },
+    { to: "/presentation", label: "Sunum", end: false },
     { to: "/system", label: "Sistem durumu", end: false },
     { to: "/about", label: "Hakkında", end: false },
   ] as const;
@@ -376,14 +377,19 @@ function RecordBoard({
   );
 }
 
-function CasesPage(): ReactNode {
-  const [caseView, setCaseView] = useState<CaseView | null>(null);
+function CasesPage({
+  caseView,
+  onCaseChange,
+}: {
+  readonly caseView: CaseView | null;
+  readonly onCaseChange: (caseView: CaseView | null) => void;
+}): ReactNode {
   const [persistedTitle, setPersistedTitle] = useState("");
   const [busy, setBusy] = useState<BusyAction>(null);
   const [error, setError] = useState<string | null>(null);
 
   const acceptCase = (nextCase: CaseView): void => {
-    setCaseView(nextCase);
+    onCaseChange(nextCase);
     setPersistedTitle(nextCase.title);
     setError(null);
   };
@@ -445,7 +451,7 @@ function CasesPage(): ReactNode {
       const current = caseView.title === persistedTitle ? caseView : await saveCurrentCase();
       if (current === null) return;
       await window.vakamatik.closeCase({ caseId: current.caseId });
-      setCaseView(null);
+      onCaseChange(null);
       setPersistedTitle("");
     } catch {
       setError("Vaka kaydedilip kapatılamadı. Vaka açık bırakıldı; yeniden deneyin.");
@@ -483,11 +489,178 @@ function CasesPage(): ReactNode {
       busy={busy}
       caseView={caseView}
       error={error}
-      onCaseChange={setCaseView}
+      onCaseChange={(nextCase) => onCaseChange(nextCase)}
       onClose={closeCase}
       onImport={importImage}
       onSave={saveCase}
     />
+  );
+}
+
+function PresentationPage({ caseView }: { readonly caseView: CaseView | null }): ReactNode {
+  const [presentation, setPresentation] = useState<PresentationView | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [state, setState] = useState<"idle" | "loading" | "exporting">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (caseView === null) {
+      setPresentation(null);
+      setSelectedId(null);
+      return;
+    }
+    let active = true;
+    setState("loading");
+    setMessage(null);
+    void window.vakamatik
+      .getPresentation({ caseId: caseView.caseId, revision: caseView.revision })
+      .then((nextPresentation) => {
+        if (!active) return;
+        setPresentation(nextPresentation);
+        setSelectedId((current) =>
+          nextPresentation.slides.some((slide) => slide.semanticSlideId === current)
+            ? current
+            : (nextPresentation.slides[0]?.semanticSlideId ?? null),
+        );
+      })
+      .catch(() => {
+        if (active) setMessage("Sunum önizlemesi oluşturulamadı. Kayıtları kontrol edip yeniden deneyin.");
+      })
+      .finally(() => {
+        if (active) setState("idle");
+      });
+    return () => {
+      active = false;
+    };
+  }, [caseView?.caseId, caseView?.revision]);
+
+  if (caseView === null) {
+    return (
+      <section className="empty-workspace presentation-empty">
+        <div className="empty-copy">
+          <h1>Önce bir vaka açın.</h1>
+          <p>
+            Sunum, açık vakanın yönetilen kayıtlarından hazırlanır. Kayıt panosundan yeni vaka oluşturun veya
+            mevcut vaka klasörünü açın.
+          </p>
+        </div>
+        <NavLink className="button primary inline-action" to="/">
+          Kayıt panosuna git
+        </NavLink>
+      </section>
+    );
+  }
+
+  const selectedSlide =
+    presentation?.slides.find((slide) => slide.semanticSlideId === selectedId) ?? presentation?.slides[0];
+  const selectedWarnings =
+    presentation?.warnings.filter((warning) => warning.semanticSlideId === selectedSlide?.semanticSlideId) ??
+    [];
+
+  const exportPresentation = async (): Promise<void> => {
+    setState("exporting");
+    setMessage(null);
+    try {
+      const result = await window.vakamatik.exportPresentation({
+        caseId: caseView.caseId,
+        revision: caseView.revision,
+      });
+      if (result.status === "ok") {
+        setMessage(`${result.fileName} oluşturuldu — ${result.slideCount} slayt.`);
+      }
+    } catch {
+      setMessage("PowerPoint oluşturulamadı. Sunum uyarılarını ve kayıtları kontrol edin.");
+    } finally {
+      setState("idle");
+    }
+  };
+
+  return (
+    <section className="presentation-workspace">
+      <header className="presentation-toolbar">
+        <div>
+          <h1>Sunum oluşturucu</h1>
+          <p>
+            {caseView.title} · {presentation?.slides.length ?? "—"} slayt ·{" "}
+            {presentation?.warnings.length ?? "—"} eksik içerik
+          </p>
+        </div>
+        <button
+          className="button primary"
+          disabled={state !== "idle" || presentation === null}
+          onClick={() => void exportPresentation()}
+          type="button"
+        >
+          {state === "exporting" ? "PowerPoint oluşturuluyor…" : "PowerPoint dışa aktar"}
+        </button>
+      </header>
+      {message === null ? null : (
+        <p className="presentation-message" role="status">
+          {message}
+        </p>
+      )}
+      {state === "loading" ? <p className="presentation-loading">Slaytlar hesaplanıyor…</p> : null}
+      {presentation === null ? null : (
+        <div className="presentation-layout">
+          <aside className="slide-strip" aria-label="Slayt küçük resimleri">
+            {presentation.slides.map((slide) => {
+              const warningCount = presentation.warnings.filter(
+                (warning) => warning.semanticSlideId === slide.semanticSlideId,
+              ).length;
+              return (
+                <button
+                  aria-current={slide.semanticSlideId === selectedSlide?.semanticSlideId ? "true" : undefined}
+                  className="slide-thumbnail"
+                  key={slide.semanticSlideId}
+                  onClick={() => setSelectedId(slide.semanticSlideId)}
+                  type="button"
+                >
+                  <span className="slide-thumbnail-image">
+                    <img alt="" src={slide.previewDataUrl} />
+                    <span>{slide.displayNumber}</span>
+                  </span>
+                  <span className="slide-thumbnail-copy">
+                    <strong>{slide.title}</strong>
+                    <small>{warningCount === 0 ? "Hazır" : `${warningCount} uyarı`}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </aside>
+          <div className="slide-stage-column">
+            {selectedSlide === undefined ? null : (
+              <>
+                <div className="slide-stage-heading">
+                  <div>
+                    <span>Slayt {selectedSlide.displayNumber}</span>
+                    <h2>{selectedSlide.title}</h2>
+                  </div>
+                  <code>{selectedSlide.semanticSlideId}</code>
+                </div>
+                <div className="slide-stage">
+                  <img alt={`${selectedSlide.title} önizlemesi`} src={selectedSlide.previewDataUrl} />
+                </div>
+                <section className="slide-warnings" aria-label="Seçili slayt uyarıları">
+                  <h3>Eksik içerik</h3>
+                  {selectedWarnings.length === 0 ? (
+                    <p>Bu slayt için eksik içerik uyarısı yok.</p>
+                  ) : (
+                    <ul>
+                      {selectedWarnings.map((warning) => (
+                        <li key={`${warning.targetKey}-${warning.message}`}>
+                          <strong>{warning.targetKey}</strong>
+                          <span>{warning.message}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -559,6 +732,7 @@ function AboutPage(): ReactNode {
 }
 
 export function App(): ReactNode {
+  const [caseView, setCaseView] = useState<CaseView | null>(null);
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -579,10 +753,11 @@ export function App(): ReactNode {
       <main className="main-surface">
         <header className="topbar">
           <span>Ortodontik Vaka Sunum Oluşturucu</span>
-          <span className="foundation-badge">Temel vakalar</span>
+          <span className="foundation-badge">Sunum oluşturucu</span>
         </header>
         <Routes>
-          <Route element={<CasesPage />} path="/" />
+          <Route element={<CasesPage caseView={caseView} onCaseChange={setCaseView} />} path="/" />
+          <Route element={<PresentationPage caseView={caseView} />} path="/presentation" />
           <Route element={<SystemPage />} path="/system" />
           <Route element={<AboutPage />} path="/about" />
         </Routes>

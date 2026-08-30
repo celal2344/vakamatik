@@ -1,9 +1,9 @@
 # Orthodontic Case Presentation Builder — Project Context
 
-Status: Gate 3 implementation complete; pending product-owner acceptance
-Version: 1.7
+Status: Gate 4 implementation complete; pending product-owner acceptance
+Version: 1.8
 Date: 2026-08-30
-Current gate: Gate 3 implementation complete; Gate 4 is not started
+Current gate: Gate 4 implementation complete; Gate 5 is not started
 
 ## 1. Purpose of this file
 
@@ -241,7 +241,7 @@ Accepted limitations:
 
 ## 14. Gate 3 status
 
-Gate 3 implementation is complete and pending product-owner acceptance. Gate 4 has not started.
+Gate 3 is accepted by the product owner.
 
 Delivered core-case workflow:
 
@@ -255,7 +255,24 @@ Delivered core-case workflow:
 
 Evidence: 36 Vitest tests across 9 files, one real-Electron Playwright security test, strict typecheck, lint, formatting, builds, Windows packaging, and packaged Sharp verification pass. See `docs/gates/GATE-3-REPORT.md`.
 
-## 15. Lead-agent rules
+## 15. Gate 4 status
+
+Gate 4 implementation is complete and pending product-owner acceptance. Gate 5 has not started.
+
+Delivered presentation workflow:
+
+- One library-independent `SlideDocument` and one 720 × 540-point geometry calculation consumed by both local SVG preview and PptxGenJS export.
+- Definitions for all 35 canonical semantic slides. The default Gate 3 case produces 30 required slides; slides 16, 18, 21, 34, and 35 are omitted when empty.
+- Slide 8 defaults to included and the layout API also supports the configured `omit-when-empty` behavior.
+- Gate 3 case title and managed normalized assets flow into presentation layouts without exposing raw paths to the renderer.
+- A basic Presentation screen provides canonical thumbnails, selected-slide preview, per-slide missing-content warnings, and local `.pptx` export.
+- A synthetic 30-slide deck passes the independent Open XML validator; all Gate 1–3 regressions remain green.
+
+Current limitation: Gate 3 intentionally has no clinical measurement, diagnosis, problem/goal/plan, decision, notes, or optional-record fields. Gate 4 leaves those native slide regions empty and reports exact missing-content warnings instead of inventing values. Those fields and user controls belong to Gate 5.
+
+Evidence: 41 Vitest tests across 10 files, one Electron Playwright security test, strict typecheck, lint, formatting, build, synthetic preview/export, Open XML validation, and Gate 1 visual thresholds pass. See `docs/gates/GATE-4-REPORT.md`.
+
+## 16. Lead-agent rules
 
 - Work one gate at a time and stop after producing its report.
 - Do not use subagents for Gates 3–6.
@@ -267,9 +284,9 @@ Evidence: 36 Vitest tests across 9 files, one real-Electron Playwright security 
 - Do not weaken validation or tests just to make a gate green.
 - Stop and ask only when a decision materially changes clinical meaning, data safety, or exporter architecture.
 
-## 16. Current non-blocking configuration defaults
+## 17. Current non-blocking configuration defaults
 
-These do not block Gate 4 planning:
+These do not block Gate 5 planning:
 
 - Turkish visible text only in v1.
 - JPEG/PNG media only.
@@ -278,7 +295,7 @@ These do not block Gate 4 planning:
 - TMJ form and worksheet supplied as images.
 - No Dolphin import in the critical path.
 
-## 17. Current handoff
+## 18. Current handoff
 
 Completed:
 
@@ -307,13 +324,22 @@ Gate 2 additions:
 
 Remaining gate structure:
 
-- Gate 3 — Core cases: case schema, local saving, image import, and Record Board.
-- Gate 4 — Presentation builder: shared layout/preview/export system and all required slides.
 - Gate 5 — Clinical editing: alignment, measurements, diagnosis, treatment plan, notes, and usability.
 - Gate 6 — Final release: recovery checks, essential regression tests, packaging, and pilot readiness.
 
 The former Gate 10 optional modules are removed from v1.
 
-Next action: review and accept Gate 3. Gate 4 must not start without explicit acceptance.
+Gate 3 additions:
+
+- Portable managed case folders, strict case schema, immutable imports, normalized assets, thumbnails, deduplication, and Record Board.
+
+Gate 4 additions:
+
+- Canonical 35-slide metadata and point layouts with optional-slide filtering.
+- Shared `SlideDocument` preview/export path, SVG preview renderer, and full-deck PptxGenJS export.
+- Narrow presentation preview/export bridge operations and Presentation screen.
+- Synthetic full-deck structural validation and stable-order/optional/geometry regression tests.
+
+Next action: review and accept Gate 4. Gate 5 must not start without explicit acceptance.
 
 Residual risks: the replacement Windows/macOS Gate 2 CI run was not accepted as platform evidence; local Smart App Control prevents Windows packaged-launch evidence; macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.
