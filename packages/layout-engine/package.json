@@ -15,6 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@vakamatik/domain": "workspace:*",
     "@vakamatik/export-contract": "workspace:*"
   }
 }

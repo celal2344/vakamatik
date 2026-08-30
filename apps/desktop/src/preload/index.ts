@@ -6,10 +6,13 @@ import {
   caseCreateRequestSchema,
   caseDialogResultSchema,
   caseImportImageRequestSchema,
+  caseAlignmentSaveRequestSchema,
+  caseClinicalSaveRequestSchema,
   caseOpenRequestSchema,
   caseSaveRequestSchema,
   caseViewSchema,
   presentationExportResultSchema,
+  presentationAcknowledgeRequestSchema,
   presentationRequestSchema,
   presentationViewSchema,
   shellAppInfoSchema,
@@ -20,9 +23,12 @@ import {
   type CaseCloseRequest,
   type CaseCreateRequest,
   type CaseImportImageRequest,
+  type CaseAlignmentSaveRequest,
+  type CaseClinicalSaveRequest,
   type CaseOpenRequest,
   type CaseSaveRequest,
   type PresentationRequest,
+  type PresentationAcknowledgeRequest,
   type VakamatikDesktopApi,
 } from "@vakamatik/desktop-contract";
 import { DESKTOP_IPC_CHANNELS } from "@vakamatik/desktop-contract/ipc";
@@ -65,6 +71,30 @@ const desktopApi: VakamatikDesktopApi = Object.freeze({
       validatedRequest,
     );
     return caseDialogResultSchema.parse(response);
+  },
+  saveClinicalCase: async (request: CaseClinicalSaveRequest) => {
+    const validatedRequest = caseClinicalSaveRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.saveClinicalCase,
+      validatedRequest,
+    );
+    return caseViewSchema.parse(response);
+  },
+  saveCaseAlignment: async (request: CaseAlignmentSaveRequest) => {
+    const validatedRequest = caseAlignmentSaveRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.saveCaseAlignment,
+      validatedRequest,
+    );
+    return caseViewSchema.parse(response);
+  },
+  acknowledgePresentationWarnings: async (request: PresentationAcknowledgeRequest) => {
+    const validatedRequest = presentationAcknowledgeRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.acknowledgePresentationWarnings,
+      validatedRequest,
+    );
+    return caseViewSchema.parse(response);
   },
   getPresentation: async (request: PresentationRequest) => {
     const validatedRequest = presentationRequestSchema.parse(request);

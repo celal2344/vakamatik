@@ -3,8 +3,11 @@ import path from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, protocol, session } from "electron";
 import {
   assignImportedImage,
+  acknowledgeManagedCaseWarnings,
   createManagedCase,
   openManagedCase,
+  updateManagedCaseAlignment,
+  updateManagedCaseClinical,
   updateManagedCaseTitle,
   type OpenManagedCase,
 } from "@vakamatik/case-store";
@@ -16,10 +19,13 @@ import {
   caseCreateRequestSchema,
   caseDialogResultSchema,
   caseImportImageRequestSchema,
+  caseAlignmentSaveRequestSchema,
+  caseClinicalSaveRequestSchema,
   caseOpenRequestSchema,
   caseSaveRequestSchema,
   caseViewSchema,
   presentationExportResultSchema,
+  presentationAcknowledgeRequestSchema,
   presentationRequestSchema,
   semanticSlideIdSchema,
   presentationViewSchema,
@@ -32,10 +38,14 @@ import { DESKTOP_IPC_CHANNELS } from "@vakamatik/desktop-contract/ipc";
 import {
   buildPresentationDocument,
   CANONICAL_SLIDES,
+  defaultLinkGroupForImage,
+  hasUnacknowledgedPresentationWarnings,
+  presentationWarningKey,
   type PresentationAssetKey,
 } from "@vakamatik/layout-engine";
 import { readThumbnailDataUrl, resolveManagedRelativePath } from "@vakamatik/media";
 import { PptxGenJsExporter } from "@vakamatik/pptx-exporter";
+import type { ImageElement } from "@vakamatik/export-contract";
 import { renderPresentationPreviews } from "@vakamatik/preview";
 import { assertTrustedIpcSender, isTrustedRendererUrl, resolveApplicationAsset } from "./security.js";
 
@@ -141,6 +151,9 @@ async function toCaseView(opened: OpenManagedCase) {
     updatedAt: opened.document.updatedAt,
     assets: Object.fromEntries(assetEntries),
     assignments: opened.document.assignments,
+    clinical: opened.document.clinical,
+    presentation: opened.document.presentation,
+    alignment: opened.document.alignment,
   });
 }
 
@@ -165,16 +178,42 @@ async function buildActivePresentation(opened: OpenManagedCase) {
       ] as const;
     }),
   );
-  return buildPresentationDocument({
-    title: opened.document.title,
-    assets: Object.fromEntries(entries),
-  });
+  const assets = Object.fromEntries(entries);
+  return {
+    ...buildPresentationDocument({
+      title: opened.document.title,
+      assets,
+      clinical: opened.document.clinical,
+      alignment: opened.document.alignment,
+      options: { slide8Behavior: opened.document.presentation.slide8Behavior },
+    }),
+    assets,
+  };
+}
+
+function imageAdjustmentFromElement(element: ImageElement) {
+  return {
+    ...element.transform,
+    crop: element.crop ?? { left: 0, top: 0, right: 0, bottom: 0 },
+  };
 }
 
 async function toPresentationView(opened: OpenManagedCase) {
   const built = await buildActivePresentation(opened);
+  const baseline = buildPresentationDocument({
+    title: opened.document.title,
+    assets: built.assets,
+    clinical: opened.document.clinical,
+    options: { slide8Behavior: opened.document.presentation.slide8Behavior },
+  });
   const previews = await renderPresentationPreviews(built.document);
   const titleById = new Map(CANONICAL_SLIDES.map(([id, title]) => [id, title]));
+  const acknowledged = new Set(opened.document.presentation.acknowledgedWarningKeys);
+  const warnings = built.warnings.map((warning) => ({
+    ...warning,
+    key: presentationWarningKey(warning),
+    acknowledged: acknowledged.has(presentationWarningKey(warning)),
+  }));
   return presentationViewSchema.parse({
     caseId: opened.document.caseId,
     revision: opened.document.revision,
@@ -185,9 +224,31 @@ async function toPresentationView(opened: OpenManagedCase) {
         displayNumber: index + 1,
         title: titleById.get(semanticSlideId) ?? semanticSlideId,
         previewDataUrl: preview.svgDataUrl,
+        imageLayers: (built.document.slides[index]?.elements ?? []).flatMap((element) => {
+          if (element.kind !== "image") return [];
+          const baselineElement = baseline.document.slides
+            .find((slide) => slide.semanticId === semanticSlideId)
+            ?.elements.find((candidate) => candidate.kind === "image" && candidate.id === element.id);
+          const configured = opened.document.alignment.instances[element.id];
+          const availableLinkGroup = defaultLinkGroupForImage(element.id);
+          return [
+            {
+              instanceId: element.id,
+              assetKey: element.id.slice(`${semanticSlideId}-`.length),
+              linkGroup: configured === undefined ? availableLinkGroup : configured.linkGroup,
+              availableLinkGroup,
+              transform: imageAdjustmentFromElement(element),
+              defaultTransform:
+                baselineElement?.kind === "image"
+                  ? imageAdjustmentFromElement(baselineElement)
+                  : imageAdjustmentFromElement(element),
+            },
+          ];
+        }),
       };
     }),
-    warnings: built.warnings,
+    warnings,
+    hasUnacknowledgedWarnings: warnings.some((warning) => !warning.acknowledged),
   });
 }
 
@@ -290,6 +351,54 @@ function registerIpcHandlers(window: BrowserWindow): void {
     }
   });
 
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.saveClinicalCase, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseClinicalSaveRequestSchema.parse(request);
+    try {
+      activeCase = await updateManagedCaseClinical(
+        requireActiveCase(activeCase, parsed.caseId),
+        parsed.revision,
+        parsed.clinical,
+        parsed.presentation,
+      );
+      return caseViewSchema.parse(await toCaseView(activeCase));
+    } catch {
+      throw new Error("Clinical case save failed.");
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.saveCaseAlignment, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseAlignmentSaveRequestSchema.parse(request);
+    try {
+      activeCase = await updateManagedCaseAlignment(
+        requireActiveCase(activeCase, parsed.caseId),
+        parsed.revision,
+        parsed.alignment,
+      );
+      return caseViewSchema.parse(await toCaseView(activeCase));
+    } catch {
+      throw new Error("Image alignment save failed.");
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.acknowledgePresentationWarnings, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = presentationAcknowledgeRequestSchema.parse(request);
+    try {
+      const opened = requireActiveCase(activeCase, parsed.caseId, parsed.revision);
+      const built = await buildActivePresentation(opened);
+      const actualKeys = [...new Set(built.warnings.map(presentationWarningKey))].sort();
+      if (actualKeys.join("|") !== [...new Set(parsed.warningKeys)].sort().join("|")) {
+        throw new Error("Warning acknowledgement is stale.");
+      }
+      activeCase = await acknowledgeManagedCaseWarnings(opened, parsed.revision, actualKeys);
+      return caseViewSchema.parse(await toCaseView(activeCase));
+    } catch {
+      throw new Error("Warning acknowledgement failed.");
+    }
+  });
+
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getPresentation, async (event, request: unknown) => {
     assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
     const parsed = presentationRequestSchema.parse(request);
@@ -319,6 +428,14 @@ function registerIpcHandlers(window: BrowserWindow): void {
     }
     try {
       const built = await buildActivePresentation(opened);
+      if (
+        hasUnacknowledgedPresentationWarnings(
+          built.warnings,
+          opened.document.presentation.acknowledgedWarningKeys,
+        )
+      ) {
+        throw new Error("Missing clinical content must be acknowledged before export.");
+      }
       const result = await new PptxGenJsExporter().export(built.document, selection.filePath);
       if (!result.validation.ok) throw new Error("Presentation validation failed.");
       return presentationExportResultSchema.parse({

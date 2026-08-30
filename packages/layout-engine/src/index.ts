@@ -13,6 +13,14 @@ import {
   type TextElement,
   type TextStyle,
 } from "@vakamatik/export-contract";
+import {
+  CEPH_MEASUREMENTS,
+  DEFAULT_ALIGNMENT_STATE,
+  DEFAULT_CLINICAL_DATA,
+  type AlignmentState,
+  type ClinicalData,
+  type ImageAdjustment,
+} from "@vakamatik/domain";
 
 const COLORS = {
   black: "000000",
@@ -122,6 +130,9 @@ export interface PresentationCaseInput {
   readonly title: string;
   readonly assets: Readonly<Partial<Record<PresentationAssetKey, PresentationAsset>>>;
   readonly options?: PresentationBuildOptions;
+  readonly clinical?: ClinicalData;
+  readonly alignment?: AlignmentState;
+  /** Gate 4 compatibility input; managed cases use clinical.icon. */
   readonly iconIndexRows?: readonly string[];
 }
 
@@ -129,6 +140,33 @@ export interface PresentationWarning {
   readonly semanticSlideId: CanonicalSemanticSlideId;
   readonly targetKey: string;
   readonly message: string;
+}
+
+export function presentationWarningKey(warning: PresentationWarning): string {
+  return `${warning.semanticSlideId}:${warning.targetKey}`;
+}
+
+export function hasUnacknowledgedPresentationWarnings(
+  warnings: readonly PresentationWarning[],
+  acknowledgedKeys: readonly string[],
+): boolean {
+  const acknowledged = new Set(acknowledgedKeys);
+  return warnings.some((warning) => !acknowledged.has(presentationWarningKey(warning)));
+}
+
+export const CEPH_SHARED_GROUP = "ceph-shared";
+export const CEPH_SHARED_INSTANCE_IDS = [
+  "ceph_lateral-lateral_ceph",
+  "ceph_vertical-lateral_ceph",
+  "ceph_sagittal-lateral_ceph",
+  "ceph_incisor-lateral_ceph",
+  "ceph_soft_tissue-lateral_ceph",
+] as const;
+
+export function defaultLinkGroupForImage(instanceId: string): string | null {
+  return CEPH_SHARED_INSTANCE_IDS.includes(instanceId as (typeof CEPH_SHARED_INSTANCE_IDS)[number])
+    ? CEPH_SHARED_GROUP
+    : null;
 }
 
 export interface PresentationBuildResult {
@@ -149,6 +187,21 @@ const bodyStyle: TextStyle = {
 
 function defined<T>(value: T | undefined): value is T {
   return value !== undefined;
+}
+
+function patientAge(patient: ClinicalData["patient"]): string {
+  if (patient.ageOverride.trim() !== "") return patient.ageOverride;
+  if (patient.dateOfBirth === "" || patient.casePresentationDate === "") return "";
+  const birth = new Date(`${patient.dateOfBirth}T00:00:00Z`);
+  const presentation = new Date(`${patient.casePresentationDate}T00:00:00Z`);
+  let years = presentation.getUTCFullYear() - birth.getUTCFullYear();
+  if (
+    presentation.getUTCMonth() < birth.getUTCMonth() ||
+    (presentation.getUTCMonth() === birth.getUTCMonth() && presentation.getUTCDate() < birth.getUTCDate())
+  ) {
+    years -= 1;
+  }
+  return years >= 0 && years <= 120 ? String(years) : "";
 }
 
 function line(id: string, bounds: PointBounds, zIndex: number, color: string): LineElement {
@@ -233,7 +286,7 @@ function tableCell(
 function measurementTable(
   id: string,
   bounds: PointBounds,
-  rows: readonly (readonly [string, string])[],
+  rows: readonly (readonly [string, string] | readonly [string, string, string])[],
 ): TableElement {
   const headerHeight = 28;
   const rowHeight = (bounds.heightPt - headerHeight) / rows.length;
@@ -250,10 +303,10 @@ function measurementTable(
         tableCell("Referans", { header: true, align: "center" }),
         tableCell("T0", { header: true, align: "center" }),
       ],
-      ...rows.map(([label, reference]) => [
+      ...rows.map(([label, reference, value = ""]) => [
         tableCell(label),
         tableCell(reference, { align: "center" }),
-        tableCell("", { align: "center" }),
+        tableCell(value, { align: "center" }),
       ]),
     ],
     overflowPolicy: "report",
@@ -294,18 +347,62 @@ function addAsset(
     });
     return undefined;
   }
-  return imageElement(`${semanticSlideId}-${key}`, asset, bounds, zIndex, placement, opacity, rotationDeg);
+  const image = imageElement(
+    `${semanticSlideId}-${key}`,
+    asset,
+    bounds,
+    zIndex,
+    placement,
+    opacity,
+    rotationDeg,
+  );
+  const alignment = input.alignment ?? DEFAULT_ALIGNMENT_STATE;
+  const instance = alignment.instances[image.id];
+  const linkGroup = instance === undefined ? defaultLinkGroupForImage(image.id) : instance.linkGroup;
+  const adjustment =
+    linkGroup === null
+      ? instance?.transform
+      : (alignment.groups[linkGroup] ??
+        (linkGroup === CEPH_SHARED_GROUP ? DEFAULT_IMAGE_ADJUSTMENT : undefined));
+  if (adjustment === undefined) return image;
+  const hasCrop = Object.values(adjustment.crop).some((value) => value > 0);
+  return {
+    ...image,
+    placement: hasCrop ? "crop" : image.placement,
+    ...(hasCrop ? { crop: adjustment.crop } : {}),
+    transform: {
+      translationXPt: adjustment.translationXPt,
+      translationYPt: adjustment.translationYPt,
+      uniformScale: adjustment.uniformScale,
+      rotationDeg: adjustment.rotationDeg,
+      opacity: adjustment.opacity,
+    },
+  };
 }
+
+const DEFAULT_IMAGE_ADJUSTMENT: ImageAdjustment = {
+  translationXPt: 0,
+  translationYPt: 0,
+  uniformScale: 1,
+  rotationDeg: 0,
+  opacity: 1,
+  crop: { left: 0, top: 0, right: 0, bottom: 0 },
+};
 
 function clinicalWarning(
   warnings: PresentationWarning[],
   id: CanonicalSemanticSlideId,
   targetKey: string,
+  value: string | number | null | undefined,
+  approved = true,
 ): void {
+  if ((typeof value === "string" ? value.trim() !== "" : value !== null && value !== undefined) && approved) {
+    return;
+  }
   warnings.push({
     semanticSlideId: id,
     targetKey,
-    message: "Bu slaydın klinik alanları Gate 5'te girilecek.",
+    message: approved ? "Klinik içerik eksik." : "Yorum klinisyen tarafından onaylanmadı.",
   });
 }
 
@@ -338,8 +435,9 @@ function photoFindingSlide(
   id: CanonicalSemanticSlideId,
   heading: string,
   key: PresentationAssetKey,
+  finding: string,
 ): SlideDefinition {
-  clinicalWarning(warnings, id, `${id}.finding`);
+  clinicalWarning(warnings, id, `${id}.finding`, finding);
   return slide(
     id,
     [
@@ -352,72 +450,13 @@ function photoFindingSlide(
         bold: true,
         verticalAlignment: "top",
       }),
+      text(`${id}-finding`, { xPt: 438, yPt: 202, widthPt: 250, heightPt: 170 }, finding, 21, {
+        ...bodyStyle,
+        verticalAlignment: "top",
+      }),
     ].filter(defined),
   );
 }
-
-const VERTICAL_ROWS = [
-  ["SN–GoGn", "32 ± 5°"],
-  ["Saddle açısı", "123 ± 5°"],
-  ["Artiküler açı", "143 ± 6°"],
-  ["Gonial açı", "130 ± 7°"],
-  ["İç açılar toplamı", "396 ± 3°"],
-  ["Jarabak", "59–63%"],
-  ["ANS–Me / N–Me", "55 ± 0.1%"],
-  ["Maksiller yükseklik", "60 ± 3°"],
-  ["Fasiyal aks", "90 ± 3.5°"],
-  ["S–Ar / Ar–Go", "75 ± 10%"],
-  ["Gonial oran", "75%"],
-  ["FMA", "25 ± 4.5°"],
-  ["Y aksı", "59.4 ± 5.5°"],
-  ["Oklüzal düzlem / SN", "14.4 ± 2.5°"],
-  ["Oklüzal / mandibular", "17.6 ± 5°"],
-  ["Palatal düzlem / SN", "7 ± 5°"],
-  ["Palatal / mandibular", "26°"],
-] as const;
-
-const SAGITTAL_ROWS = [
-  ["SNA", "82 ± 2°"],
-  ["SNB", "80 ± 2°"],
-  ["ANB", "2 ± 2°"],
-  ["Wits", "−1 ± 2 mm"],
-  ["Ön kafa kaidesi", "73 ± 3 mm"],
-  ["Mandibular gövde", "80 ± 4.4 mm"],
-  ["Ön kaide / gövde", "x / x+7"],
-  ["Arka kafa kaidesi", "37 ± 4.4 mm"],
-  ["A–N dikmesi", "1 ± 2 mm"],
-  ["Pog–N dikmesi", "−2 ± 4 mm"],
-  ["Maksiller derinlik", "90 ± 3°"],
-  ["Co–A", "91 ± 4.3"],
-  ["Co–Gn", "120 ± 5.3"],
-] as const;
-
-const INCISOR_ROWS = [
-  ["U1–SN", "103 ± 5.5°"],
-  ["U1–FH", "112 ± 6°"],
-  ["U1–Palatal", "115 ± 6°"],
-  ["U1–NA açı", "22 ± 5.7°"],
-  ["U1–NA mesafe", "4 ± 2.7 mm"],
-  ["IMPA", "90 ± 7°"],
-  ["L1–NB açı", "25 ± 6°"],
-  ["L1–NB mesafe", "4 ± 1.8 mm"],
-  ["Pog–NB", "4 ± 1.7 mm"],
-  ["Holdaway oranı", "1 / 1"],
-  ["İnterinsizal açı", "131 ± 6°"],
-] as const;
-
-const SOFT_TISSUE_ROWS = [
-  ["Nazolabial açı", "102 ± 8°"],
-  ["Holdaway açısı", "8 ± 4°"],
-  ["Üst dudak / E", "−4 ± 2 mm"],
-  ["Alt dudak / E", "−2 ± 2 mm"],
-  ["Profil açısı", "161 ± 5°"],
-  ["Konveksite", "131 ± 4°"],
-  ["Yumuşak Pog / Sn", "−3 ± 1 mm"],
-  ["Üst dudak / Sn", "3 ± 1 mm"],
-  ["Alt dudak / Sn", "1 ± 1 mm"],
-  ["Üst sulkus derinliği", "Kliniğe göre"],
-] as const;
 
 const INFERIOR_KEYS: readonly PresentationAssetKey[] = [
   "inferior_intraoral_right",
@@ -434,17 +473,31 @@ function buildSlide(
   input: PresentationCaseInput,
   warnings: PresentationWarning[],
 ): SlideDefinition {
+  const clinical = input.clinical ?? DEFAULT_CLINICAL_DATA;
   switch (id) {
     case "case_overview":
+      clinicalWarning(warnings, id, "patient.patientName", clinical.patient.patientName);
+      clinicalWarning(warnings, id, "patient.dateOfBirth", clinical.patient.dateOfBirth);
+      clinicalWarning(warnings, id, "patient.patientAssignmentDate", clinical.patient.patientAssignmentDate);
+      clinicalWarning(warnings, id, "patient.recordsDate", clinical.patient.recordsDate);
+      clinicalWarning(warnings, id, "patient.casePresentationDate", clinical.patient.casePresentationDate);
+      clinicalWarning(warnings, id, "patient.treatingDoctor", clinical.patient.treatingDoctor);
+      clinicalWarning(warnings, id, "patient.chiefComplaint", clinical.patient.chiefComplaint);
       return slide(id, [
-        text("case-overview-title", { xPt: 25, yPt: 70, widthPt: 670, heightPt: 70 }, input.title, 10, {
-          ...bodyStyle,
-          color: COLORS.gold,
-          fontSizePt: 28,
-          minFontSizePt: 22,
-          bold: true,
-          marginPt: 0,
-        }),
+        text(
+          "case-overview-title",
+          { xPt: 25, yPt: 70, widthPt: 670, heightPt: 70 },
+          clinical.patient.patientName || input.title,
+          10,
+          {
+            ...bodyStyle,
+            color: COLORS.gold,
+            fontSizePt: 28,
+            minFontSizePt: 22,
+            bold: true,
+            marginPt: 0,
+          },
+        ),
         text(
           "case-overview-label",
           { xPt: 25, yPt: 145, widthPt: 670, heightPt: 34 },
@@ -457,20 +510,92 @@ function buildSlide(
             marginPt: 0,
           },
         ),
+        text(
+          "case-overview-metadata",
+          { xPt: 25, yPt: 202, widthPt: 670, heightPt: 190 },
+          [
+            clinical.patient.casePresentationDate && `Sunum tarihi: ${clinical.patient.casePresentationDate}`,
+            clinical.patient.dateOfBirth && `Doğum tarihi: ${clinical.patient.dateOfBirth}`,
+            patientAge(clinical.patient) && `Yaş: ${patientAge(clinical.patient)}`,
+            clinical.patient.patientAssignmentDate &&
+              `Hasta veriliş: ${clinical.patient.patientAssignmentDate}`,
+            clinical.patient.recordsDate && `Kayıt tarihi: ${clinical.patient.recordsDate}`,
+            clinical.patient.treatmentStartDate &&
+              `Tedavi başlangıcı: ${clinical.patient.treatmentStartDate}`,
+            clinical.patient.treatingDoctor && `Hekim: ${clinical.patient.treatingDoctor}`,
+            clinical.patient.referringDoctor && `Sevk eden: ${clinical.patient.referringDoctor}`,
+            clinical.patient.chiefComplaint && `Şikâyet: ${clinical.patient.chiefComplaint}`,
+            clinical.patient.anamnesis && `Anamnez: ${clinical.patient.anamnesis}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          12,
+          { ...bodyStyle, verticalAlignment: "top" },
+        ),
       ]);
     case "extraoral_front_rest":
-      return photoFindingSlide(input, warnings, id, "Yüz simetrisi", "face_front_rest");
+      return photoFindingSlide(
+        input,
+        warnings,
+        id,
+        "Yüz simetrisi",
+        "face_front_rest",
+        clinical.findings.facialSymmetry,
+      );
     case "extraoral_front_smile":
-      return photoFindingSlide(input, warnings, id, "Gülümseme hattı", "face_front_smile");
+      return photoFindingSlide(
+        input,
+        warnings,
+        id,
+        "Gülümseme hattı",
+        "face_front_smile",
+        clinical.findings.smileLine,
+      );
     case "extraoral_front_profile_rest":
       return pairedSlide(input, warnings, id, heading, "face_front_rest", "face_profile_rest");
     case "extraoral_profile_rest_smile":
-      clinicalWarning(warnings, id, "extraoral.softTissueProfile");
-      return pairedSlide(input, warnings, id, heading, "face_profile_rest", "face_profile_smile");
-    case "extraoral_three_quarter":
-      return pairedSlide(input, warnings, id, heading, "face_three_quarter_rest", "face_three_quarter_smile");
+      clinicalWarning(warnings, id, "extraoral.softTissueProfile", clinical.findings.softTissueProfile);
+      {
+        const base = pairedSlide(input, warnings, id, heading, "face_profile_rest", "face_profile_smile");
+        return {
+          ...base,
+          elements: [
+            ...base.elements,
+            text(
+              `${id}-finding`,
+              { xPt: 40, yPt: 455, widthPt: 640, heightPt: 30 },
+              clinical.findings.softTissueProfile,
+              30,
+              { ...bodyStyle, color: COLORS.gold, horizontalAlignment: "center" },
+            ),
+          ],
+        };
+      }
+    case "extraoral_three_quarter": {
+      const base = pairedSlide(
+        input,
+        warnings,
+        id,
+        heading,
+        "face_three_quarter_rest",
+        "face_three_quarter_smile",
+      );
+      return {
+        ...base,
+        elements: [
+          ...base.elements,
+          text(
+            `${id}-finding`,
+            { xPt: 40, yPt: 455, widthPt: 640, heightPt: 30 },
+            clinical.findings.threeQuarterNote,
+            30,
+            { ...bodyStyle, color: COLORS.gold, horizontalAlignment: "center" },
+          ),
+        ],
+      };
+    }
     case "lip_tooth_relationship": {
-      clinicalWarning(warnings, id, "extraoral.lipToothFinding");
+      clinicalWarning(warnings, id, "extraoral.upperIncisorDisplay", clinical.findings.upperIncisorDisplay);
       const placements = [
         ["face_front_rest", 0, 79],
         ["face_front_smile", 360, 79],
@@ -484,12 +609,22 @@ function buildSlide(
             addAsset(input, warnings, id, key, { xPt, yPt, widthPt: 360, heightPt: 203 }, index + 1),
           )
           .filter(defined),
+        text(
+          `${id}-finding`,
+          { xPt: 24, yPt: 487, widthPt: 672, heightPt: 38 },
+          clinical.findings.upperIncisorDisplay,
+          30,
+          { ...bodyStyle, color: COLORS.gold, horizontalAlignment: "center" },
+        ),
       ]);
     }
     case "extraoral_retractor_pair":
       return pairedSlide(input, warnings, id, heading, "retractor_front_1", "retractor_front_2");
     case "dental_frontal_comparison": {
-      clinicalWarning(warnings, id, "dental.midlinesOverjetOverbite");
+      clinicalWarning(warnings, id, "dental.upperMidline", clinical.findings.upperMidline);
+      clinicalWarning(warnings, id, "dental.lowerMidline", clinical.findings.lowerMidline);
+      clinicalWarning(warnings, id, "dental.overjetMm", clinical.findings.overjetMm);
+      clinicalWarning(warnings, id, "dental.overbiteMm", clinical.findings.overbiteMm);
       return slide(
         id,
         [
@@ -517,13 +652,27 @@ function buildSlide(
             11,
             COLORS.turquoise,
           ),
+          text(
+            "dental-frontal-values",
+            { xPt: 455, yPt: 452, widthPt: 250, heightPt: 74 },
+            [
+              `Üst orta hat: ${clinical.findings.upperMidline}`,
+              `Alt orta hat: ${clinical.findings.lowerMidline}`,
+              `Overjet: ${clinical.findings.overjetMm ?? ""} mm · Overbite: ${clinical.findings.overbiteMm ?? ""} mm`,
+            ].join("\n"),
+            30,
+            { ...bodyStyle, fontSizePt: 11, minFontSizePt: 9, verticalAlignment: "top" },
+          ),
         ].filter(defined),
       );
     }
     case "dental_right_comparison":
     case "dental_left_comparison": {
-      clinicalWarning(warnings, id, "dental.relationships");
       const isRight = id === "dental_right_comparison";
+      const relationship = isRight
+        ? `${clinical.findings.rightMolarRelationship}; ${clinical.findings.rightCanineRelationship}`
+        : `${clinical.findings.leftMolarRelationship}; ${clinical.findings.leftCanineRelationship}`;
+      clinicalWarning(warnings, id, "dental.relationships", relationship.replace(/^; |; $/gu, ""));
       const xPt = isRight ? 0 : 247;
       const key = isRight ? "right" : "left";
       return slide(
@@ -541,7 +690,7 @@ function buildSlide(
           text(
             `${id}-finding`,
             { xPt: isRight ? 490 : 18, yPt: 188, widthPt: 210, heightPt: 160 },
-            heading,
+            relationship || heading,
             20,
             {
               ...bodyStyle,
@@ -555,7 +704,18 @@ function buildSlide(
     }
     case "occlusal_photos_space_analysis":
     case "models_space_analysis": {
-      clinicalWarning(warnings, id, "spaceAnalysis.hnBolton");
+      clinicalWarning(
+        warnings,
+        id,
+        "spaceAnalysis.hn",
+        Object.values(clinical.hn).every((value) => value !== null) ? "complete" : "",
+      );
+      clinicalWarning(
+        warnings,
+        id,
+        "spaceAnalysis.bolton",
+        clinical.bolton.anterior.status !== "" && clinical.bolton.overall.status !== "" ? "complete" : "",
+      );
       const model = id === "models_space_analysis";
       const prefix = model ? "model" : "intraoral";
       return slide(
@@ -580,13 +740,23 @@ function buildSlide(
           titleElement(id, heading),
           text(
             `${id}-analysis-label`,
-            { xPt: 425, yPt: 102, widthPt: 240, heightPt: 90 },
-            "Hayes Nance\nBolton",
+            { xPt: 390, yPt: 72, widthPt: 300, heightPt: 370 },
+            [
+              `HN üst: ${clinical.hn.upperTotal ?? ""} mm`,
+              `Üst sağ / sol: ${clinical.hn.upperRight ?? ""} / ${clinical.hn.upperLeft ?? ""} mm`,
+              `HN alt: ${clinical.hn.lowerTotal ?? ""} mm`,
+              `Alt sağ / sol: ${clinical.hn.lowerRight ?? ""} / ${clinical.hn.lowerLeft ?? ""} mm`,
+              `Bolton anterior: ${clinical.bolton.anterior.discrepancyMm ?? ""} mm`,
+              `Durum / ark: ${clinical.bolton.anterior.status} / ${clinical.bolton.anterior.affectedArch}`,
+              `Bolton total: ${clinical.bolton.overall.discrepancyMm ?? ""} mm`,
+              `Durum / ark: ${clinical.bolton.overall.status} / ${clinical.bolton.overall.affectedArch}`,
+            ].join("\n"),
             20,
             {
               ...bodyStyle,
               color: COLORS.gold,
-              fontSizePt: 20,
+              fontSizePt: 13,
+              minFontSizePt: 10,
               bold: true,
               horizontalAlignment: "center",
             },
@@ -596,7 +766,7 @@ function buildSlide(
     }
     case "intraoral_montage":
     case "model_montage": {
-      clinicalWarning(warnings, id, "dental.summaryMeasurements");
+      clinicalWarning(warnings, id, "dental.summaryMeasurements", clinical.findings.upperMidline);
       const prefix = id === "intraoral_montage" ? "intraoral" : "model";
       const placements = [
         [`${prefix}_upper_occlusal`, 235, 0, 250, 187],
@@ -607,11 +777,18 @@ function buildSlide(
       ] as const;
       return slide(
         id,
-        placements
-          .map(([key, xPt, yPt, widthPt, heightPt], index) =>
+        [
+          ...placements.map(([key, xPt, yPt, widthPt, heightPt], index) =>
             addAsset(input, warnings, id, key, { xPt, yPt, widthPt, heightPt }, index + 1),
-          )
-          .filter(defined),
+          ),
+          text(
+            `${id}-clinical-summary`,
+            { xPt: 10, yPt: 500, widthPt: 700, heightPt: 34 },
+            `Üst/alt orta hat: ${clinical.findings.upperMidline} / ${clinical.findings.lowerMidline} · OJ/OB: ${clinical.findings.overjetMm ?? ""}/${clinical.findings.overbiteMm ?? ""} mm · Element III: ${clinical.findings.andrewsElementThreeMm ?? ""} mm`,
+            30,
+            { ...bodyStyle, fontSizePt: 10, minFontSizePt: 9, horizontalAlignment: "center" },
+          ),
+        ].filter(defined),
       );
     }
     case "inferior_comparison":
@@ -634,7 +811,13 @@ function buildSlide(
         ).filter(defined),
       );
     case "cervical_maturation":
-      clinicalWarning(warnings, id, "growth.cervicalStage");
+      clinicalWarning(
+        warnings,
+        id,
+        "growth.cervicalStage",
+        clinical.interpretations.cervicalStage.text,
+        clinical.interpretations.cervicalStage.approved,
+      );
       return slide(
         id,
         [
@@ -651,7 +834,7 @@ function buildSlide(
           text(
             "cervical-reference",
             { xPt: 338, yPt: 106, widthPt: 301, heightPt: 278 },
-            "Servikal maturasyon\nreferans grafiği",
+            clinical.interpretations.cervicalStage.text || clinical.findings.cervicalMaturationStage,
             10,
             {
               ...bodyStyle,
@@ -685,6 +868,9 @@ function buildSlide(
         warnings,
         id,
         id === "panoramic_missing_teeth" ? "radiographic.missingTeeth" : "radiographic.restorativeFindings",
+        id === "panoramic_missing_teeth"
+          ? clinical.findings.missingTeethFinding
+          : clinical.findings.restorativeFinding,
       );
       return slide(
         id,
@@ -699,10 +885,19 @@ function buildSlide(
             1,
             "contain",
           ),
+          text(
+            `${id}-finding`,
+            { xPt: 28, yPt: 467, widthPt: 664, heightPt: 55 },
+            id === "panoramic_missing_teeth"
+              ? clinical.findings.missingTeethFinding
+              : clinical.findings.restorativeFinding,
+            20,
+            { ...bodyStyle, color: COLORS.gold, horizontalAlignment: "center" },
+          ),
         ].filter(defined),
       );
     case "tmj_review":
-      clinicalWarning(warnings, id, "radiographic.tmjFinding");
+      clinicalWarning(warnings, id, "radiographic.tmjFinding", clinical.findings.tmjFinding);
       return slide(
         id,
         [
@@ -731,6 +926,13 @@ function buildSlide(
             { xPt: 226, yPt: 306, widthPt: 494, heightPt: 234 },
             3,
             "contain",
+          ),
+          text(
+            "tmj-finding",
+            { xPt: 300, yPt: 92, widthPt: 390, heightPt: 180 },
+            clinical.findings.tmjFinding,
+            20,
+            { ...bodyStyle, verticalAlignment: "top" },
           ),
         ].filter(defined),
       );
@@ -798,15 +1000,42 @@ function buildSlide(
     case "ceph_sagittal":
     case "ceph_incisor":
     case "ceph_soft_tissue": {
-      clinicalWarning(warnings, id, `measurements.${id}`);
-      const rows =
+      const measurementGroup =
         id === "ceph_vertical"
-          ? VERTICAL_ROWS
+          ? "vertical"
           : id === "ceph_sagittal"
-            ? SAGITTAL_ROWS
+            ? "sagittal"
             : id === "ceph_incisor"
-              ? INCISOR_ROWS
-              : SOFT_TISSUE_ROWS;
+              ? "incisor"
+              : "soft_tissue";
+      const rows = CEPH_MEASUREMENTS.filter(([, , , group]) => group === measurementGroup).map(
+        ([key, label, reference]) => [label, reference, clinical.measurements[key] ?? ""] as const,
+      );
+      const interpretation =
+        id === "ceph_vertical"
+          ? clinical.interpretations.growthPattern
+          : id === "ceph_sagittal"
+            ? clinical.interpretations.skeletal
+            : id === "ceph_incisor"
+              ? clinical.interpretations.upperIncisor
+              : clinical.interpretations.softTissueProfile;
+      const interpretationText =
+        id === "ceph_incisor"
+          ? [clinical.interpretations.upperIncisor.text, clinical.interpretations.lowerIncisor.text]
+              .filter(Boolean)
+              .join("\n")
+          : interpretation.text;
+      const interpretationApproved =
+        id === "ceph_incisor"
+          ? clinical.interpretations.upperIncisor.approved && clinical.interpretations.lowerIncisor.approved
+          : interpretation.approved;
+      clinicalWarning(
+        warnings,
+        id,
+        `measurements.${id}`,
+        rows.every((row) => row[2].trim() !== "") ? "complete" : "",
+      );
+      clinicalWarning(warnings, id, `interpretations.${id}`, interpretationText, interpretationApproved);
       const tableBounds =
         id === "ceph_vertical"
           ? { xPt: 341, yPt: 11, widthPt: 365, heightPt: 489 }
@@ -828,12 +1057,48 @@ function buildSlide(
             "contain",
           ),
           measurementTable(`${id}-table`, tableBounds, rows),
+          text(
+            `${id}-interpretation`,
+            { xPt: 28, yPt: 468, widthPt: 664, heightPt: 52 },
+            interpretationText,
+            30,
+            { ...bodyStyle, color: COLORS.gold, horizontalAlignment: "center" },
+          ),
         ].filter(defined),
       );
     }
     case "analysis_summary":
-      clinicalWarning(warnings, id, "analysis.summary");
-      return slide(id, [titleElement(id, heading)]);
+      clinicalWarning(
+        warnings,
+        id,
+        "analysis.skeletal",
+        clinical.interpretations.analysisSkeletal.text,
+        clinical.interpretations.analysisSkeletal.approved,
+      );
+      clinicalWarning(
+        warnings,
+        id,
+        "analysis.dental",
+        clinical.interpretations.analysisDental.text,
+        clinical.interpretations.analysisDental.approved,
+      );
+      return slide(id, [
+        titleElement(id, heading),
+        text(
+          "analysis-skeletal",
+          { xPt: 60, yPt: 120, widthPt: 600, heightPt: 125 },
+          `İskeletsel\n${clinical.interpretations.analysisSkeletal.text}`,
+          10,
+          { ...bodyStyle, fontSizePt: 18, color: COLORS.gold, verticalAlignment: "top" },
+        ),
+        text(
+          "analysis-dental",
+          { xPt: 60, yPt: 285, widthPt: 600, heightPt: 125 },
+          `Dental\n${clinical.interpretations.analysisDental.text}`,
+          11,
+          { ...bodyStyle, fontSizePt: 18, color: COLORS.gold, verticalAlignment: "top" },
+        ),
+      ]);
     case "diagnostic_photo_montage":
     case "diagnostic_model_montage": {
       const model = id === "diagnostic_model_montage";
@@ -885,12 +1150,17 @@ function buildSlide(
       return slide(id, elements);
     }
     case "problem_goal_plan": {
-      clinicalWarning(warnings, id, "plan.rows");
+      clinicalWarning(
+        warnings,
+        id,
+        "plan.rows",
+        clinical.problemGoalPlan.some((row) => row.problem.trim() !== "") ? "complete" : "",
+      );
       const rows = Array.from({ length: 5 }, (_, index) => [
         tableCell(String(index + 1), { dark: true, align: "center" }),
-        tableCell("", { dark: true }),
-        tableCell("", { dark: true }),
-        tableCell("", { dark: true }),
+        tableCell(clinical.problemGoalPlan[index]?.problem ?? "", { dark: true }),
+        tableCell(clinical.problemGoalPlan[index]?.goal ?? "", { dark: true }),
+        tableCell(clinical.problemGoalPlan[index]?.plan ?? "", { dark: true }),
       ]);
       return slide(id, [
         {
@@ -914,10 +1184,29 @@ function buildSlide(
       ]);
     }
     case "case_decision":
-      clinicalWarning(warnings, id, "decision.bullets");
-      return slide(id, [titleElement(id, heading)]);
+      clinicalWarning(warnings, id, "decision.bullets", clinical.decision.bullets.join(" "));
+      return slide(id, [
+        titleElement(id, heading),
+        text(
+          "case-decision-owner",
+          { xPt: 72, yPt: 105, widthPt: 576, heightPt: 45 },
+          clinical.decision.ownerTitle,
+          10,
+          { ...bodyStyle, color: COLORS.gold, bold: true, horizontalAlignment: "center" },
+        ),
+        text(
+          "case-decision-bullets",
+          { xPt: 105, yPt: 175, widthPt: 510, heightPt: 285 },
+          clinical.decision.bullets.map((item) => `• ${item}`).join("\n"),
+          11,
+          { ...bodyStyle, fontSizePt: 18, verticalAlignment: "top" },
+        ),
+      ]);
     case "icon_index": {
-      const rows = input.iconIndexRows ?? [];
+      const rows =
+        clinical.icon.rows.length > 0
+          ? clinical.icon.rows.map((row) => `${row.label} · ${row.rawScore} × ${row.weight} = ${row.result}`)
+          : [...(input.iconIndexRows ?? [])];
       return slide(id, [
         titleElement(id, heading),
         text("icon-index-rows", { xPt: 86, yPt: 90, widthPt: 548, heightPt: 380 }, rows.join("\n"), 10, {
@@ -926,6 +1215,13 @@ function buildSlide(
           lineSpacingMultiple: 1.3,
           verticalAlignment: "top",
         }),
+        text(
+          "icon-index-total",
+          { xPt: 86, yPt: 470, widthPt: 548, heightPt: 38 },
+          `Toplam: ${clinical.icon.total}`,
+          11,
+          { ...bodyStyle, color: COLORS.gold, bold: true, horizontalAlignment: "right" },
+        ),
       ]);
     }
     case "space_analysis_worksheet":
@@ -949,6 +1245,7 @@ function buildSlide(
 export function buildPresentationDocument(input: PresentationCaseInput): PresentationBuildResult {
   const warnings: PresentationWarning[] = [];
   const options = input.options ?? DEFAULT_PRESENTATION_OPTIONS;
+  const clinical = input.clinical ?? DEFAULT_CLINICAL_DATA;
   const hasAnyInferior = INFERIOR_KEYS.some((key) => input.assets[key] !== undefined);
   const hasRetractor =
     input.assets.retractor_front_1 !== undefined || input.assets.retractor_front_2 !== undefined;
@@ -962,7 +1259,10 @@ export function buildPresentationDocument(input: PresentationCaseInput): Present
       case "tmj_review":
         return input.assets.tmj_questionnaire !== undefined;
       case "icon_index":
-        return (input.iconIndexRows?.length ?? 0) > 0;
+        return (
+          clinical.icon.rows.some((row) => row.label.trim() !== "" || row.rawScore.trim() !== "") ||
+          (input.iconIndexRows?.length ?? 0) > 0
+        );
       case "space_analysis_worksheet":
         return input.assets.space_analysis_worksheet !== undefined;
       case "extraoral_retractor_pair":
@@ -972,9 +1272,14 @@ export function buildPresentationDocument(input: PresentationCaseInput): Present
     }
   };
 
-  const slides = CANONICAL_SLIDES.filter(([id]) => include(id)).map(([id, heading]) =>
-    buildSlide(id, heading, input, warnings),
-  );
+  const slides = CANONICAL_SLIDES.filter(([id]) => include(id)).map(([id, heading]) => {
+    const built = buildSlide(id, heading, input, warnings);
+    const slideNote = clinical.notes.bySlide[id]?.trim();
+    const notes = clinical.notes.exportSpeakerNotes
+      ? [id === "case_overview" ? clinical.notes.caseNote.trim() : "", slideNote ?? ""].filter(Boolean)
+      : [];
+    return notes.length === 0 ? built : { ...built, speakerNotes: notes };
+  });
 
   return {
     document: { schemaVersion: 1, slides },

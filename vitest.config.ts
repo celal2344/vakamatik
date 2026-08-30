@@ -9,6 +9,7 @@ export default defineConfig({
     },
   },
   test: {
+    fileParallelism: false,
     include: ["tests/**/*.test.ts"],
     exclude: ["tests/gate-2/electron/**", "**/node_modules/**", "**/dist/**", "**/.vite/**", "**/out/**"],
   },

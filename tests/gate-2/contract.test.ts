@@ -24,6 +24,9 @@ describe("documented desktop bridge contract", () => {
       "saveCase",
       "closeCase",
       "importCaseImage",
+      "saveClinicalCase",
+      "saveCaseAlignment",
+      "acknowledgePresentationWarnings",
       "getPresentation",
       "exportPresentation",
     ]);

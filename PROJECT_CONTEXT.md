@@ -1,9 +1,9 @@
 # Orthodontic Case Presentation Builder — Project Context
 
-Status: Gate 4 implementation complete; pending product-owner acceptance
-Version: 1.8
+Status: Gate 5 implementation complete; pending product-owner acceptance
+Version: 1.9
 Date: 2026-08-30
-Current gate: Gate 4 implementation complete; Gate 5 is not started
+Current gate: Gate 5 implementation complete; Gate 6 is not started
 
 ## 1. Purpose of this file
 
@@ -257,7 +257,7 @@ Evidence: 36 Vitest tests across 9 files, one real-Electron Playwright security 
 
 ## 15. Gate 4 status
 
-Gate 4 implementation is complete and pending product-owner acceptance. Gate 5 has not started.
+Gate 4 is accepted by the product owner.
 
 Delivered presentation workflow:
 
@@ -268,11 +268,27 @@ Delivered presentation workflow:
 - A basic Presentation screen provides canonical thumbnails, selected-slide preview, per-slide missing-content warnings, and local `.pptx` export.
 - A synthetic 30-slide deck passes the independent Open XML validator; all Gate 1–3 regressions remain green.
 
-Current limitation: Gate 3 intentionally has no clinical measurement, diagnosis, problem/goal/plan, decision, notes, or optional-record fields. Gate 4 leaves those native slide regions empty and reports exact missing-content warnings instead of inventing values. Those fields and user controls belong to Gate 5.
-
 Evidence: 41 Vitest tests across 10 files, one Electron Playwright security test, strict typecheck, lint, formatting, build, synthetic preview/export, Open XML validation, and Gate 1 visual thresholds pass. See `docs/gates/GATE-4-REPORT.md`.
 
-## 16. Lead-agent rules
+## 16. Gate 5 status
+
+Gate 5 implementation is complete and pending product-owner acceptance. Gate 6 has not started.
+
+Delivered clinical editing workflow:
+
+- Strict persisted clinical fields for patient/case metadata, extraoral/dental/radiographic findings, all six HN results, both Bolton results, all specified cephalometric values, clinician-approved interpretations, five problem/goal/plan rows, case decision, ICON data, and notes.
+- Optional Record Board inputs for slides 16, 18, 21, and 35; slide 34 is included when ICON rows are populated. Slide 8 behavior is case-configurable.
+- Precision per-image translation, uniform scale, crop, fractional rotation, opacity, arrow-key nudging, reset, and linked/detached transform controls.
+- A shared ceph transform group for slides 23 and 25–28 with explicit per-instance detach/relink. Slide 22 profile and ceph layers remain independently adjustable.
+- Saved edits feed the same `SlideDocument` used by SVG preview and PptxGenJS export immediately after save/revision refresh.
+- Missing clinical content is visible and blocks export only until the clinician acknowledges the current warning set. Corrupt cases and failed/invalid exports remain blocking errors.
+- Speaker notes are exported only when the clinician enables note export. No diagnosis or interpretation text is generated automatically.
+
+Ambiguous relationship classifications remain clinician-authored free text. HN/Bolton are manual final values, slide 24 remains a precomposited tracing image, and Dolphin/tooth-level calculators remain excluded.
+
+Evidence: 46 Vitest tests across 11 files, one real-Electron Playwright security test, strict typecheck, lint, formatting, production build, synthetic preview/export, independent Open XML validation, and existing Gate 1–4 regressions pass. See `docs/gates/GATE-5-REPORT.md`.
+
+## 17. Lead-agent rules
 
 - Work one gate at a time and stop after producing its report.
 - Do not use subagents for Gates 3–6.
@@ -284,7 +300,7 @@ Evidence: 41 Vitest tests across 10 files, one Electron Playwright security test
 - Do not weaken validation or tests just to make a gate green.
 - Stop and ask only when a decision materially changes clinical meaning, data safety, or exporter architecture.
 
-## 17. Current non-blocking configuration defaults
+## 18. Current non-blocking configuration defaults
 
 These do not block Gate 5 planning:
 
@@ -295,7 +311,7 @@ These do not block Gate 5 planning:
 - TMJ form and worksheet supplied as images.
 - No Dolphin import in the critical path.
 
-## 18. Current handoff
+## 19. Current handoff
 
 Completed:
 
@@ -340,6 +356,12 @@ Gate 4 additions:
 - Narrow presentation preview/export bridge operations and Presentation screen.
 - Synthetic full-deck structural validation and stable-order/optional/geometry regression tests.
 
-Next action: review and accept Gate 4. Gate 5 must not start without explicit acceptance.
+Gate 5 additions:
+
+- Persisted clinician forms, optional-slide content, interpretation approval, notes, and warning acknowledgement.
+- Precision alignment with shared/detached ceph behavior and independent slide 22 overlay controls.
+- Clinical data binding into shared preview/export geometry and a complete synthetic clinical export regression.
+
+Next action: review and accept Gate 5. Gate 6 must not start without explicit acceptance.
 
 Residual risks: the replacement Windows/macOS Gate 2 CI run was not accepted as platform evidence; local Smart App Control prevents Windows packaged-launch evidence; macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.

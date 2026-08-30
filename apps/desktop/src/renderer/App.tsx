@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import { NavLink, Route, Routes } from "react-router-dom";
 import { RECORD_SLOTS, type RecordSlotId } from "@vakamatik/domain";
 import type { CaseView, PresentationView, ShellAppInfo } from "@vakamatik/desktop-contract";
+import { ClinicalPage } from "./ClinicalPage.js";
+import { AlignmentControls } from "./AlignmentControls.js";
 
 type RecordGroup = (typeof RECORD_SLOTS)[number]["group"];
 type Filter = "all" | RecordGroup;
@@ -11,7 +13,9 @@ const GROUP_LABELS: Readonly<Record<RecordGroup, string>> = {
   extraoral: "Ekstraoral",
   intraoral: "İntraoral",
   models: "Modeller",
+  inferior: "İnferior kayıtlar",
   imaging: "Görüntüleme",
+  optional: "Opsiyonel slaytlar",
 };
 
 function BrandMark(): ReactNode {
@@ -26,6 +30,7 @@ function BrandMark(): ReactNode {
 function Navigation(): ReactNode {
   const items = [
     { to: "/", label: "Kayıt panosu", end: true },
+    { to: "/clinical", label: "Klinik düzenleme", end: false },
     { to: "/presentation", label: "Sunum", end: false },
     { to: "/system", label: "Sistem durumu", end: false },
     { to: "/about", label: "Hakkında", end: false },
@@ -323,23 +328,25 @@ function RecordBoard({
           </p>
         </div>
         <div className="filter-row" aria-label="Kayıt grubu filtresi">
-          {(["all", "extraoral", "intraoral", "models", "imaging"] as const).map((filterId) => (
-            <button
-              aria-pressed={filter === filterId}
-              className="filter-button"
-              key={filterId}
-              onClick={() => {
-                setFilter(filterId);
-                if (filterId !== "all") {
-                  const firstSlot = RECORD_SLOTS.find((slot) => slot.group === filterId);
-                  if (firstSlot !== undefined) setSelectedSlotId(firstSlot.id);
-                }
-              }}
-              type="button"
-            >
-              {filterId === "all" ? "Tümü" : GROUP_LABELS[filterId]}
-            </button>
-          ))}
+          {(["all", "extraoral", "intraoral", "models", "inferior", "imaging", "optional"] as const).map(
+            (filterId) => (
+              <button
+                aria-pressed={filter === filterId}
+                className="filter-button"
+                key={filterId}
+                onClick={() => {
+                  setFilter(filterId);
+                  if (filterId !== "all") {
+                    const firstSlot = RECORD_SLOTS.find((slot) => slot.group === filterId);
+                    if (firstSlot !== undefined) setSelectedSlotId(firstSlot.id);
+                  }
+                }}
+                type="button"
+              >
+                {filterId === "all" ? "Tümü" : GROUP_LABELS[filterId]}
+              </button>
+            ),
+          )}
         </div>
       </div>
 
@@ -497,10 +504,16 @@ function CasesPage({
   );
 }
 
-function PresentationPage({ caseView }: { readonly caseView: CaseView | null }): ReactNode {
+function PresentationPage({
+  caseView,
+  onCaseChange,
+}: {
+  readonly caseView: CaseView | null;
+  readonly onCaseChange: (next: CaseView) => void;
+}): ReactNode {
   const [presentation, setPresentation] = useState<PresentationView | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [state, setState] = useState<"idle" | "loading" | "exporting">("idle");
+  const [state, setState] = useState<"idle" | "loading" | "exporting" | "acknowledging">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -575,6 +588,25 @@ function PresentationPage({ caseView }: { readonly caseView: CaseView | null }):
     }
   };
 
+  const acknowledgeWarnings = async (): Promise<void> => {
+    if (presentation === null) return;
+    setState("acknowledging");
+    setMessage(null);
+    try {
+      const saved = await window.vakamatik.acknowledgePresentationWarnings({
+        caseId: caseView.caseId,
+        revision: caseView.revision,
+        warningKeys: presentation.warnings.map((warning) => warning.key),
+      });
+      onCaseChange(saved);
+      setMessage("Mevcut eksik içerik uyarıları klinisyen tarafından kabul edildi.");
+    } catch {
+      setMessage("Uyarılar kabul edilemedi; sunumu yenileyip tekrar deneyin.");
+    } finally {
+      setState("idle");
+    }
+  };
+
   return (
     <section className="presentation-workspace">
       <header className="presentation-toolbar">
@@ -585,14 +617,26 @@ function PresentationPage({ caseView }: { readonly caseView: CaseView | null }):
             {presentation?.warnings.length ?? "—"} eksik içerik
           </p>
         </div>
-        <button
-          className="button primary"
-          disabled={state !== "idle" || presentation === null}
-          onClick={() => void exportPresentation()}
-          type="button"
-        >
-          {state === "exporting" ? "PowerPoint oluşturuluyor…" : "PowerPoint dışa aktar"}
-        </button>
+        <div className="presentation-actions">
+          {presentation?.hasUnacknowledgedWarnings === true ? (
+            <button
+              className="button secondary"
+              disabled={state !== "idle"}
+              onClick={() => void acknowledgeWarnings()}
+              type="button"
+            >
+              {state === "acknowledging" ? "Kabul ediliyor…" : "Eksikleri kabul et"}
+            </button>
+          ) : null}
+          <button
+            className="button primary"
+            disabled={state !== "idle" || presentation === null || presentation.hasUnacknowledgedWarnings}
+            onClick={() => void exportPresentation()}
+            type="button"
+          >
+            {state === "exporting" ? "PowerPoint oluşturuluyor…" : "PowerPoint dışa aktar"}
+          </button>
+        </div>
       </header>
       {message === null ? null : (
         <p className="presentation-message" role="status">
@@ -647,7 +691,7 @@ function PresentationPage({ caseView }: { readonly caseView: CaseView | null }):
                   ) : (
                     <ul>
                       {selectedWarnings.map((warning) => (
-                        <li key={`${warning.targetKey}-${warning.message}`}>
+                        <li className={warning.acknowledged ? "acknowledged" : ""} key={warning.key}>
                           <strong>{warning.targetKey}</strong>
                           <span>{warning.message}</span>
                         </li>
@@ -655,6 +699,7 @@ function PresentationPage({ caseView }: { readonly caseView: CaseView | null }):
                     </ul>
                   )}
                 </section>
+                <AlignmentControls caseView={caseView} onCaseChange={onCaseChange} slide={selectedSlide} />
               </>
             )}
           </div>
@@ -757,7 +802,11 @@ export function App(): ReactNode {
         </header>
         <Routes>
           <Route element={<CasesPage caseView={caseView} onCaseChange={setCaseView} />} path="/" />
-          <Route element={<PresentationPage caseView={caseView} />} path="/presentation" />
+          <Route element={<ClinicalPage caseView={caseView} onCaseChange={setCaseView} />} path="/clinical" />
+          <Route
+            element={<PresentationPage caseView={caseView} onCaseChange={setCaseView} />}
+            path="/presentation"
+          />
           <Route element={<SystemPage />} path="/system" />
           <Route element={<AboutPage />} path="/about" />
         </Routes>

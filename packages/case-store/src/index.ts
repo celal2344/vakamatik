@@ -3,9 +3,15 @@ import { mkdir, open, readFile, realpath, rename, rm, stat } from "node:fs/promi
 import path from "node:path";
 import {
   caseDocumentSchema,
+  alignmentStateSchema,
+  clinicalDataSchema,
   createCaseDocument,
+  presentationSettingsSchema,
   recordSlotIdSchema,
+  type AlignmentState,
   type CaseDocument,
+  type ClinicalData,
+  type PresentationSettings,
   type RecordSlotId,
 } from "@vakamatik/domain";
 import { importManagedImage, resolveManagedRelativePath } from "@vakamatik/media";
@@ -102,6 +108,62 @@ export async function assignImportedImage(
     updatedAt: new Date().toISOString(),
     assets: { ...opened.document.assets, [asset.assetId]: asset },
     assignments: { ...opened.document.assignments, [parsedSlotId]: asset.assetId },
+  });
+  await saveManagedCase(opened.root, updated);
+  return { ...opened, document: updated };
+}
+
+export async function updateManagedCaseClinical(
+  opened: OpenManagedCase,
+  expectedRevision: number,
+  clinical: ClinicalData,
+  presentation: PresentationSettings,
+): Promise<OpenManagedCase> {
+  assertRevision(opened.document, expectedRevision);
+  const updated = caseDocumentSchema.parse({
+    ...opened.document,
+    clinical: clinicalDataSchema.parse(clinical),
+    presentation: {
+      ...presentationSettingsSchema.parse(presentation),
+      acknowledgedWarningKeys: [],
+    },
+    revision: opened.document.revision + 1,
+    updatedAt: new Date().toISOString(),
+  });
+  await saveManagedCase(opened.root, updated);
+  return { ...opened, document: updated };
+}
+
+export async function updateManagedCaseAlignment(
+  opened: OpenManagedCase,
+  expectedRevision: number,
+  alignment: AlignmentState,
+): Promise<OpenManagedCase> {
+  assertRevision(opened.document, expectedRevision);
+  const updated = caseDocumentSchema.parse({
+    ...opened.document,
+    alignment: alignmentStateSchema.parse(alignment),
+    revision: opened.document.revision + 1,
+    updatedAt: new Date().toISOString(),
+  });
+  await saveManagedCase(opened.root, updated);
+  return { ...opened, document: updated };
+}
+
+export async function acknowledgeManagedCaseWarnings(
+  opened: OpenManagedCase,
+  expectedRevision: number,
+  warningKeys: readonly string[],
+): Promise<OpenManagedCase> {
+  assertRevision(opened.document, expectedRevision);
+  const updated = caseDocumentSchema.parse({
+    ...opened.document,
+    presentation: {
+      ...opened.document.presentation,
+      acknowledgedWarningKeys: [...new Set(warningKeys)].sort(),
+    },
+    revision: opened.document.revision + 1,
+    updatedAt: new Date().toISOString(),
   });
   await saveManagedCase(opened.root, updated);
   return { ...opened, document: updated };

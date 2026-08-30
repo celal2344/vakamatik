@@ -7,6 +7,9 @@ import type {
   CaseOpenRequest,
   CaseSaveRequest,
   CaseView,
+  CaseClinicalSaveRequest,
+  CaseAlignmentSaveRequest,
+  PresentationAcknowledgeRequest,
   PresentationExportResult,
   PresentationRequest,
   PresentationView,
@@ -24,6 +27,9 @@ export const DESKTOP_IPC_CHANNELS = {
   saveCase: "vakamatik:case:save",
   closeCase: "vakamatik:case:close",
   importCaseImage: "vakamatik:case:import-image",
+  saveClinicalCase: "vakamatik:case:save-clinical",
+  saveCaseAlignment: "vakamatik:case:save-alignment",
+  acknowledgePresentationWarnings: "vakamatik:presentation:acknowledge-warnings",
   getPresentation: "vakamatik:presentation:get",
   exportPresentation: "vakamatik:presentation:export",
 } as const;
@@ -56,6 +62,18 @@ export interface DesktopIpcOperationMap {
   readonly [DESKTOP_IPC_CHANNELS.importCaseImage]: {
     readonly request: CaseImportImageRequest;
     readonly response: CaseDialogResult;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.saveClinicalCase]: {
+    readonly request: CaseClinicalSaveRequest;
+    readonly response: CaseView;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.saveCaseAlignment]: {
+    readonly request: CaseAlignmentSaveRequest;
+    readonly response: CaseView;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.acknowledgePresentationWarnings]: {
+    readonly request: PresentationAcknowledgeRequest;
+    readonly response: CaseView;
   };
   readonly [DESKTOP_IPC_CHANNELS.getPresentation]: {
     readonly request: PresentationRequest;

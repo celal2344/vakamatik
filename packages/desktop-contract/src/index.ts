@@ -1,5 +1,13 @@
 import { z } from "zod";
-import { assetIdSchema, caseIdSchema, recordSlotIdSchema } from "@vakamatik/domain";
+import {
+  alignmentStateSchema,
+  assetIdSchema,
+  caseIdSchema,
+  clinicalDataSchema,
+  imageAdjustmentSchema,
+  presentationSettingsSchema,
+  recordSlotIdSchema,
+} from "@vakamatik/domain";
 import { CANONICAL_SLIDE_ORDER } from "@vakamatik/export-contract";
 
 export const DESKTOP_GLOBAL_KEY = "vakamatik" as const;
@@ -60,6 +68,9 @@ export const caseViewSchema = z
     updatedAt: z.string().datetime({ offset: true }),
     assets: z.record(assetIdSchema, caseAssetViewSchema),
     assignments: z.partialRecord(recordSlotIdSchema, assetIdSchema),
+    clinical: clinicalDataSchema,
+    presentation: presentationSettingsSchema,
+    alignment: alignmentStateSchema,
   })
   .strict();
 
@@ -80,6 +91,24 @@ export const caseImportImageRequestSchema = z
     slotId: recordSlotIdSchema,
   })
   .strict();
+export const caseClinicalSaveRequestSchema = z
+  .object({
+    caseId: caseIdSchema,
+    revision: z.number().int().nonnegative(),
+    clinical: clinicalDataSchema,
+    presentation: presentationSettingsSchema,
+  })
+  .strict();
+export const caseAlignmentSaveRequestSchema = z
+  .object({ caseId: caseIdSchema, revision: z.number().int().nonnegative(), alignment: alignmentStateSchema })
+  .strict();
+export const presentationAcknowledgeRequestSchema = z
+  .object({
+    caseId: caseIdSchema,
+    revision: z.number().int().nonnegative(),
+    warningKeys: z.array(z.string().min(1).max(280)).max(500),
+  })
+  .strict();
 
 export const caseDialogResultSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("cancelled") }).strict(),
@@ -93,6 +122,9 @@ export type CaseOpenRequest = z.infer<typeof caseOpenRequestSchema>;
 export type CaseSaveRequest = z.infer<typeof caseSaveRequestSchema>;
 export type CaseCloseRequest = z.infer<typeof caseCloseRequestSchema>;
 export type CaseImportImageRequest = z.infer<typeof caseImportImageRequestSchema>;
+export type CaseClinicalSaveRequest = z.infer<typeof caseClinicalSaveRequestSchema>;
+export type CaseAlignmentSaveRequest = z.infer<typeof caseAlignmentSaveRequestSchema>;
+export type PresentationAcknowledgeRequest = z.infer<typeof presentationAcknowledgeRequestSchema>;
 export type CaseDialogResult = z.infer<typeof caseDialogResultSchema>;
 export type CaseCloseResponse = z.infer<typeof caseCloseResponseSchema>;
 
@@ -105,9 +137,21 @@ export const presentationRequestSchema = z
   .strict();
 export const presentationWarningSchema = z
   .object({
+    key: z.string().min(1).max(280),
     semanticSlideId: semanticSlideIdSchema,
     targetKey: z.string().min(1).max(160),
     message: z.string().min(1).max(240),
+    acknowledged: z.boolean(),
+  })
+  .strict();
+export const presentationImageLayerSchema = z
+  .object({
+    instanceId: z.string().min(1).max(180),
+    assetKey: z.string().min(1).max(100),
+    linkGroup: z.string().min(1).max(80).nullable(),
+    availableLinkGroup: z.string().min(1).max(80).nullable(),
+    transform: imageAdjustmentSchema,
+    defaultTransform: imageAdjustmentSchema,
   })
   .strict();
 export const presentationSlideViewSchema = z
@@ -116,6 +160,7 @@ export const presentationSlideViewSchema = z
     displayNumber: z.number().int().positive(),
     title: z.string().min(1).max(120),
     previewDataUrl: z.string().startsWith("data:image/svg+xml;base64,"),
+    imageLayers: z.array(presentationImageLayerSchema),
   })
   .strict();
 export const presentationViewSchema = z
@@ -124,6 +169,7 @@ export const presentationViewSchema = z
     revision: z.number().int().nonnegative(),
     slides: z.array(presentationSlideViewSchema).min(1).max(35),
     warnings: z.array(presentationWarningSchema),
+    hasUnacknowledgedWarnings: z.boolean(),
   })
   .strict();
 export const presentationExportResultSchema = z.discriminatedUnion("status", [
@@ -153,6 +199,9 @@ export interface VakamatikDesktopApi {
   readonly saveCase: (request: CaseSaveRequest) => Promise<CaseView>;
   readonly closeCase: (request: CaseCloseRequest) => Promise<CaseCloseResponse>;
   readonly importCaseImage: (request: CaseImportImageRequest) => Promise<CaseDialogResult>;
+  readonly saveClinicalCase: (request: CaseClinicalSaveRequest) => Promise<CaseView>;
+  readonly saveCaseAlignment: (request: CaseAlignmentSaveRequest) => Promise<CaseView>;
+  readonly acknowledgePresentationWarnings: (request: PresentationAcknowledgeRequest) => Promise<CaseView>;
   readonly getPresentation: (request: PresentationRequest) => Promise<PresentationView>;
   readonly exportPresentation: (request: PresentationRequest) => Promise<PresentationExportResult>;
 }

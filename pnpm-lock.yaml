@@ -153,6 +153,9 @@ importers:
 
   packages/layout-engine:
     dependencies:
+      '@vakamatik/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@vakamatik/export-contract':
         specifier: workspace:*
         version: link:../export-contract

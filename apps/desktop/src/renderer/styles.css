@@ -931,6 +931,335 @@ input:disabled {
   color: #704942;
 }
 
+.slide-warnings li.acknowledged {
+  opacity: 0.65;
+}
+.presentation-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.clinical-workspace {
+  min-height: calc(100vh - 62px);
+}
+.clinical-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfaf5;
+}
+.clinical-toolbar h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 32px;
+  font-weight: 500;
+}
+.clinical-toolbar p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.clinical-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+}
+.clinical-section-nav {
+  position: sticky;
+  top: 62px;
+  display: grid;
+  align-content: start;
+  min-height: calc(100vh - 62px);
+  padding: 22px 14px;
+  border-right: 1px solid var(--line);
+  background: #efede6;
+}
+.clinical-section-nav button {
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  text-align: left;
+  background: transparent;
+}
+.clinical-section-nav button:hover,
+.clinical-section-nav button[aria-current="page"] {
+  color: #fff;
+  background: var(--navy-soft);
+}
+.clinical-form {
+  max-width: 1100px;
+  padding: 30px 34px 60px;
+}
+.clinical-section-heading {
+  margin-bottom: 26px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.clinical-section-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 29px;
+  font-weight: 500;
+}
+.clinical-section-heading p {
+  max-width: 72ch;
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.clinical-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.clinical-field {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.clinical-field.wide,
+.wide {
+  grid-column: 1 / -1;
+}
+.clinical-field input,
+.clinical-field textarea,
+.clinical-field select,
+.measurement-grid input,
+.icon-editor input,
+.plan-row textarea,
+.layer-select select,
+.alignment-fields input,
+.crop-fields input {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 1px solid #aab2af;
+  border-radius: 7px;
+  color: var(--ink);
+  background: #fffefa;
+  font: inherit;
+  font-weight: 400;
+}
+.clinical-field textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+.clinical-subheading {
+  margin: 34px 0 15px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 21px;
+  font-weight: 500;
+}
+.bolton-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.bolton-row legend {
+  padding: 0 8px;
+  font-weight: 700;
+}
+.measurement-group {
+  margin-bottom: 30px;
+}
+.measurement-group h3 {
+  margin: 0 0 10px;
+  color: var(--teal-dark);
+}
+.measurement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+}
+.measurement-grid label {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 110px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.measurement-grid label:nth-child(odd) {
+  border-right: 1px solid var(--line);
+}
+.measurement-grid span,
+.measurement-grid small {
+  display: block;
+}
+.measurement-grid span {
+  font-size: 12px;
+}
+.measurement-grid small {
+  margin-top: 3px;
+  color: var(--muted);
+}
+.interpretation-list {
+  display: grid;
+  gap: 14px;
+}
+.interpretation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 15px;
+  align-items: end;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.approval-check {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  color: var(--teal-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+.approval-check input {
+  width: 18px;
+  height: 18px;
+}
+.plan-editor {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.plan-header,
+.plan-row {
+  display: grid;
+  grid-template-columns: 42px repeat(3, minmax(0, 1fr));
+}
+.plan-header {
+  color: #fff;
+  background: var(--navy-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+.plan-header span,
+.plan-row strong {
+  padding: 10px;
+}
+.plan-row {
+  border-top: 1px solid var(--line);
+}
+.plan-row strong {
+  text-align: center;
+}
+.plan-row textarea {
+  min-height: 86px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  resize: vertical;
+}
+.decision-fields {
+  margin-top: 24px;
+}
+.icon-editor {
+  display: grid;
+  gap: 9px;
+}
+.icon-editor > div {
+  display: grid;
+  grid-template-columns: 32px minmax(180px, 1fr) repeat(3, 100px);
+  gap: 8px;
+  align-items: center;
+}
+
+.alignment-panel {
+  max-width: 960px;
+  margin: 26px auto 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfaf5;
+  outline: none;
+}
+.alignment-panel:focus-visible {
+  box-shadow: 0 0 0 3px rgb(35 104 110 / 25%);
+}
+.alignment-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+.alignment-heading h3 {
+  margin: 0;
+}
+.alignment-heading p,
+.alignment-panel > p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.alignment-heading > span {
+  color: var(--teal-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+.layer-select {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.nudge-grid {
+  display: grid;
+  width: 126px;
+  grid-template-columns: repeat(3, 38px);
+  gap: 6px;
+  margin: 18px 0;
+}
+.nudge-grid button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+.alignment-fields {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(80px, 1fr));
+  gap: 10px;
+}
+.alignment-fields label,
+.crop-fields label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.crop-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(80px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+}
+.crop-fields legend {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.alignment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.alignment-message {
+  color: var(--teal-dark) !important;
+}
+
 .about-ledger span {
   color: var(--muted);
 }
