@@ -1,0 +1,64 @@
+name: Build macOS packages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/macos-package.yml"
+      - "apps/desktop/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: macOS ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Apple-Silicon
+            runner: macos-15
+            arch: arm64
+          - name: Intel
+            runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build workspace
+        run: pnpm build
+      - name: Make unsigned macOS package
+        run: pnpm --filter @vakamatik/desktop exec electron-forge make --platform=darwin --arch=${{ matrix.arch }}
+      - name: Verify package archive
+        shell: bash
+        run: |
+          archive="$(find apps/desktop/out/make/zip/darwin/${{ matrix.arch }} -type f -name '*.zip' -print -quit)"
+          test -n "$archive"
+          unzip -t "$archive"
+          mkdir -p "$RUNNER_TEMP/vakamatik-package"
+          ditto -x -k "$archive" "$RUNNER_TEMP/vakamatik-package"
+          test -d "$RUNNER_TEMP/vakamatik-package/Vakamatik.app"
+          file "$RUNNER_TEMP/vakamatik-package/Vakamatik.app/Contents/MacOS/Vakamatik"
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vakamatik-macOS-${{ matrix.name }}-0.1.0
+          path: apps/desktop/out/make/zip/darwin/${{ matrix.arch }}/*.zip
+          if-no-files-found: error
+          retention-days: 14

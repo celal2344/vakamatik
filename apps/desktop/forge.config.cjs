@@ -2,7 +2,7 @@ const { MakerSquirrel } = require("@electron-forge/maker-squirrel");
 const { MakerZIP } = require("@electron-forge/maker-zip");
 const { FusesPlugin } = require("@electron-forge/plugin-fuses");
 const { FuseV1Options, FuseVersion } = require("@electron/fuses");
-const { cpSync, mkdirSync, rmSync } = require("node:fs");
+const { copyFileSync, cpSync, existsSync, mkdirSync, rmSync } = require("node:fs");
 const path = require("node:path");
 
 const runtimeStage = path.join(__dirname, ".runtime");
@@ -21,6 +21,24 @@ function stageSharpRuntime() {
 
 function clearSharpRuntime() {
   rmSync(runtimeStage, { force: true, recursive: true });
+}
+
+function ensureSquirrelZipTools() {
+  const makerEntry = require.resolve("@electron-forge/maker-squirrel");
+  const winstallerPackage = require.resolve("electron-winstaller/package.json", {
+    paths: [path.dirname(makerEntry)],
+  });
+  const vendorDirectory = path.join(path.dirname(winstallerPackage), "vendor");
+  const supportedArchitecture = process.arch === "arm64" ? "arm64" : "x64";
+
+  for (const extension of ["exe", "dll"]) {
+    const source = path.join(vendorDirectory, `7z-${supportedArchitecture}.${extension}`);
+    const destination = path.join(vendorDirectory, `7z.${extension}`);
+    if (!existsSync(source)) {
+      throw new Error(`Squirrel 7-Zip helper is missing: ${source}`);
+    }
+    copyFileSync(source, destination);
+  }
 }
 
 module.exports = {
@@ -43,6 +61,7 @@ module.exports = {
   hooks: {
     generateAssets: async () => stageSharpRuntime(),
     postPackage: async () => clearSharpRuntime(),
+    preMake: async () => ensureSquirrelZipTools(),
   },
   makers: [new MakerSquirrel({ name: "vakamatik" }), new MakerZIP({}, ["darwin"])],
   plugins: [
