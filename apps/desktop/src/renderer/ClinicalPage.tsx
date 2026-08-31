@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { CANONICAL_SLIDE_ORDER } from "@vakamatik/export-contract";
 import { CEPH_MEASUREMENTS, type ClinicalData } from "@vakamatik/domain";
 import type { CaseView } from "@vakamatik/desktop-contract";
+import type { RegisterFlush, SaveStatus } from "./workspace-save.js";
 
 type Section = "patient" | "findings" | "analyses" | "ceph" | "planning" | "notes";
 
@@ -80,11 +81,18 @@ function numberValue(value: string): number | null {
 export function ClinicalPage({
   caseView,
   onCaseChange,
+  onRegisterFlush,
+  onSaveStatusChange,
+  section,
+  onSectionChange,
 }: {
   readonly caseView: CaseView | null;
   readonly onCaseChange: (next: CaseView) => void;
+  readonly onRegisterFlush: RegisterFlush;
+  readonly onSaveStatusChange: (status: SaveStatus) => void;
+  readonly section: Section;
+  readonly onSectionChange: (section: Section) => void;
 }): ReactNode {
-  const [section, setSection] = useState<Section>("patient");
   const [draft, setDraft] = useState<ClinicalData | null>(caseView?.clinical ?? null);
   const [slide8Behavior, setSlide8Behavior] = useState<CaseView["presentation"]["slide8Behavior"]>(
     caseView?.presentation.slide8Behavior ?? "include",
@@ -92,13 +100,57 @@ export function ClinicalPage({
   const [noteSlide, setNoteSlide] = useState<(typeof CANONICAL_SLIDE_ORDER)[number]>(
     CANONICAL_SLIDE_ORDER[0],
   );
-  const [state, setState] = useState<"idle" | "saving">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(caseView?.clinical ?? null);
     setSlide8Behavior(caseView?.presentation.slide8Behavior ?? "include");
   }, [caseView?.caseId, caseView?.revision]);
+
+  useEffect(() => {
+    if (caseView === null || draft === null) return;
+    const unchanged =
+      JSON.stringify(draft) === JSON.stringify(caseView.clinical) &&
+      slide8Behavior === caseView.presentation.slide8Behavior;
+    onSaveStatusChange(unchanged ? "saved" : "pending");
+  }, [
+    caseView?.caseId,
+    caseView?.clinical,
+    caseView?.presentation.slide8Behavior,
+    draft,
+    onSaveStatusChange,
+    slide8Behavior,
+  ]);
+
+  const flushClinical = useCallback(async (): Promise<boolean> => {
+    if (caseView === null || draft === null) return true;
+    const unchanged =
+      JSON.stringify(draft) === JSON.stringify(caseView.clinical) &&
+      slide8Behavior === caseView.presentation.slide8Behavior;
+    if (unchanged) return true;
+    onSaveStatusChange("saving");
+    try {
+      const saved = await window.vakamatik.saveClinicalCase({
+        caseId: caseView.caseId,
+        revision: caseView.revision,
+        clinical: draft,
+        presentation: { ...caseView.presentation, slide8Behavior },
+      });
+      onCaseChange(saved);
+      onSaveStatusChange("saved");
+      setMessage("Klinik değişiklikler kaydedildi.");
+      return true;
+    } catch {
+      onSaveStatusChange("error");
+      setMessage("Klinik alanlar kaydedilemedi. Değerleri kontrol edip yeniden deneyin.");
+      return false;
+    }
+  }, [caseView, draft, onCaseChange, onSaveStatusChange, slide8Behavior]);
+
+  useEffect(() => {
+    onRegisterFlush(flushClinical);
+    return () => onRegisterFlush(null);
+  }, [flushClinical, onRegisterFlush]);
 
   if (caseView === null || draft === null)
     return (
@@ -113,25 +165,6 @@ export function ClinicalPage({
       </section>
     );
 
-  const save = async (): Promise<void> => {
-    setState("saving");
-    setMessage(null);
-    try {
-      const saved = await window.vakamatik.saveClinicalCase({
-        caseId: caseView.caseId,
-        revision: caseView.revision,
-        clinical: draft,
-        presentation: { ...caseView.presentation, slide8Behavior },
-      });
-      onCaseChange(saved);
-      setMessage("Klinik değişiklikler kaydedildi; önizleme ve dışa aktarım güncellendi.");
-    } catch {
-      setMessage("Klinik alanlar kaydedilemedi. Değerleri kontrol edip yeniden deneyin.");
-    } finally {
-      setState("idle");
-    }
-  };
-
   const setPatient = (key: keyof ClinicalData["patient"], value: string): void =>
     setDraft({ ...draft, patient: { ...draft.patient, [key]: value } });
   const setFindingText = (key: (typeof findingTextFields)[number][0], value: string): void =>
@@ -144,14 +177,7 @@ export function ClinicalPage({
           <h1>Klinik düzenleme</h1>
           <p>{caseView.title} · yorumlar yalnızca klinisyen tarafından yazılır veya onaylanır</p>
         </div>
-        <button
-          className="button primary"
-          disabled={state !== "idle"}
-          onClick={() => void save()}
-          type="button"
-        >
-          {state === "saving" ? "Kaydediliyor…" : "Tüm değişiklikleri kaydet"}
-        </button>
+        <span className="autosave-hint">Sekme değiştirirken ve çıkarken kaydedilir</span>
       </header>
       {message === null ? null : (
         <p className="presentation-message" role="status">
@@ -164,7 +190,11 @@ export function ClinicalPage({
             <button
               aria-current={section === id ? "page" : undefined}
               key={id}
-              onClick={() => setSection(id)}
+              onClick={() => {
+                void flushClinical().then((ok) => {
+                  if (ok) onSectionChange(id);
+                });
+              }}
               type="button"
             >
               {label}

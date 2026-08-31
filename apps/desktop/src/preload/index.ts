@@ -9,25 +9,44 @@ import {
   caseAlignmentSaveRequestSchema,
   caseClinicalSaveRequestSchema,
   caseOpenRequestSchema,
+  caseSessionActivateRequestSchema,
+  caseSessionForgetRequestSchema,
+  caseSessionForgetResponseSchema,
+  caseSessionListRequestSchema,
+  caseSessionListResponseSchema,
+  caseSessionRelinkRequestSchema,
+  caseSessionUiStateSaveRequestSchema,
+  caseSessionUiStateSaveResponseSchema,
   caseSaveRequestSchema,
   caseViewSchema,
   presentationExportResultSchema,
   presentationAcknowledgeRequestSchema,
   presentationRequestSchema,
+  presentationSlidePreviewRequestSchema,
+  presentationSlideViewSchema,
   presentationViewSchema,
   shellAppInfoSchema,
+  shellCompleteCloseRequestSchema,
+  shellCompleteCloseResponseSchema,
   shellGetAppInfoRequestSchema,
   shellPingRequestSchema,
   shellPingResponseSchema,
   type ShellPingRequest,
+  type ShellCompleteCloseRequest,
   type CaseCloseRequest,
   type CaseCreateRequest,
   type CaseImportImageRequest,
   type CaseAlignmentSaveRequest,
   type CaseClinicalSaveRequest,
   type CaseOpenRequest,
+  type CaseSessionActivateRequest,
+  type CaseSessionForgetRequest,
+  type CaseSessionListRequest,
+  type CaseSessionRelinkRequest,
+  type CaseSessionUiStateSaveRequest,
   type CaseSaveRequest,
   type PresentationRequest,
+  type PresentationSlidePreviewRequest,
   type PresentationAcknowledgeRequest,
   type VakamatikDesktopApi,
 } from "@vakamatik/desktop-contract";
@@ -44,6 +63,16 @@ const desktopApi: VakamatikDesktopApi = Object.freeze({
     const response: unknown = await ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.ping, validatedRequest);
     return shellPingResponseSchema.parse(response);
   },
+  onCloseRequested: (listener: () => void) => {
+    const handler = (): void => listener();
+    ipcRenderer.on(DESKTOP_IPC_CHANNELS.closeRequested, handler);
+    return () => ipcRenderer.removeListener(DESKTOP_IPC_CHANNELS.closeRequested, handler);
+  },
+  completeClose: async (request: ShellCompleteCloseRequest) => {
+    const validatedRequest = shellCompleteCloseRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.completeClose, validatedRequest);
+    return shellCompleteCloseResponseSchema.parse(response);
+  },
   createCase: async (request: CaseCreateRequest) => {
     const validatedRequest = caseCreateRequestSchema.parse(request);
     const response: unknown = await ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.createCase, validatedRequest);
@@ -53,6 +82,46 @@ const desktopApi: VakamatikDesktopApi = Object.freeze({
     const validatedRequest = caseOpenRequestSchema.parse(request);
     const response: unknown = await ipcRenderer.invoke(DESKTOP_IPC_CHANNELS.openCase, validatedRequest);
     return caseDialogResultSchema.parse(response);
+  },
+  listCaseSessions: async (request: CaseSessionListRequest) => {
+    const validatedRequest = caseSessionListRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.listCaseSessions,
+      validatedRequest,
+    );
+    return caseSessionListResponseSchema.parse(response);
+  },
+  activateCaseSession: async (request: CaseSessionActivateRequest) => {
+    const validatedRequest = caseSessionActivateRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.activateCaseSession,
+      validatedRequest,
+    );
+    return caseViewSchema.parse(response);
+  },
+  forgetCaseSession: async (request: CaseSessionForgetRequest) => {
+    const validatedRequest = caseSessionForgetRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.forgetCaseSession,
+      validatedRequest,
+    );
+    return caseSessionForgetResponseSchema.parse(response);
+  },
+  relinkCaseSession: async (request: CaseSessionRelinkRequest) => {
+    const validatedRequest = caseSessionRelinkRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.relinkCaseSession,
+      validatedRequest,
+    );
+    return caseDialogResultSchema.parse(response);
+  },
+  saveCaseSessionUiState: async (request: CaseSessionUiStateSaveRequest) => {
+    const validatedRequest = caseSessionUiStateSaveRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.saveCaseSessionUiState,
+      validatedRequest,
+    );
+    return caseSessionUiStateSaveResponseSchema.parse(response);
   },
   saveCase: async (request: CaseSaveRequest) => {
     const validatedRequest = caseSaveRequestSchema.parse(request);
@@ -103,6 +172,14 @@ const desktopApi: VakamatikDesktopApi = Object.freeze({
       validatedRequest,
     );
     return presentationViewSchema.parse(response);
+  },
+  previewPresentationSlide: async (request: PresentationSlidePreviewRequest) => {
+    const validatedRequest = presentationSlidePreviewRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.previewPresentationSlide,
+      validatedRequest,
+    );
+    return presentationSlideViewSchema.parse(response);
   },
   exportPresentation: async (request: PresentationRequest) => {
     const validatedRequest = presentationRequestSchema.parse(request);

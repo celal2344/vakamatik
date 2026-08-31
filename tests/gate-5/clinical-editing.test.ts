@@ -18,6 +18,7 @@ import {
 } from "../../packages/domain/src/index.js";
 import {
   buildPresentationDocument,
+  defaultLinkGroupForImage,
   hasUnacknowledgedPresentationWarnings,
   presentationWarningKey,
   type PresentationAsset,
@@ -210,15 +211,14 @@ describe("Gate 5 clinical editing", () => {
       built.document.slides
         .find((slide) => slide.semanticId === id)
         ?.elements.find((element) => element.kind === "image" && element.source.assetId === ceph.assetId);
-    expect(
-      image("ceph_lateral")?.kind === "image" ? image("ceph_lateral").transform.translationXPt : null,
-    ).toBe(12);
-    expect(
-      image("ceph_sagittal")?.kind === "image" ? image("ceph_sagittal").transform.translationXPt : null,
-    ).toBe(12);
+    for (const id of ["ceph_lateral", "ceph_sagittal", "ceph_incisor", "ceph_soft_tissue"] as const) {
+      expect(image(id)?.kind === "image" ? image(id).transform.translationXPt : null).toBe(12);
+    }
     expect(
       image("ceph_vertical")?.kind === "image" ? image("ceph_vertical").transform.translationXPt : null,
     ).toBe(44);
+    expect(defaultLinkGroupForImage("ceph_profile_overlay-lateral_ceph")).toBeNull();
+    expect(defaultLinkGroupForImage("ceph_profile_overlay-face_profile_rest")).toBeNull();
 
     const cases = path.join(temporaryDirectory, "alignment-cases");
     await import("node:fs/promises").then(({ mkdir }) => mkdir(cases, { recursive: true }));

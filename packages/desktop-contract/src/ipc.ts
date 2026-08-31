@@ -5,6 +5,14 @@ import type {
   CaseDialogResult,
   CaseImportImageRequest,
   CaseOpenRequest,
+  CaseSessionActivateRequest,
+  CaseSessionForgetRequest,
+  CaseSessionForgetResponse,
+  CaseSessionListRequest,
+  CaseSessionListResponse,
+  CaseSessionRelinkRequest,
+  CaseSessionUiStateSaveRequest,
+  CaseSessionUiStateSaveResponse,
   CaseSaveRequest,
   CaseView,
   CaseClinicalSaveRequest,
@@ -13,7 +21,11 @@ import type {
   PresentationExportResult,
   PresentationRequest,
   PresentationView,
+  PresentationSlidePreviewRequest,
+  PresentationSlideView,
   ShellAppInfo,
+  ShellCompleteCloseRequest,
+  ShellCompleteCloseResponse,
   ShellGetAppInfoRequest,
   ShellPingRequest,
   ShellPingResponse,
@@ -22,8 +34,15 @@ import type {
 export const DESKTOP_IPC_CHANNELS = {
   getAppInfo: "vakamatik:shell:get-app-info",
   ping: "vakamatik:shell:ping",
+  closeRequested: "vakamatik:shell:close-requested",
+  completeClose: "vakamatik:shell:complete-close",
   createCase: "vakamatik:case:create",
   openCase: "vakamatik:case:open",
+  listCaseSessions: "vakamatik:session:list",
+  activateCaseSession: "vakamatik:session:activate",
+  forgetCaseSession: "vakamatik:session:forget",
+  relinkCaseSession: "vakamatik:session:relink",
+  saveCaseSessionUiState: "vakamatik:session:save-ui-state",
   saveCase: "vakamatik:case:save",
   closeCase: "vakamatik:case:close",
   importCaseImage: "vakamatik:case:import-image",
@@ -31,6 +50,7 @@ export const DESKTOP_IPC_CHANNELS = {
   saveCaseAlignment: "vakamatik:case:save-alignment",
   acknowledgePresentationWarnings: "vakamatik:presentation:acknowledge-warnings",
   getPresentation: "vakamatik:presentation:get",
+  previewPresentationSlide: "vakamatik:presentation:preview-slide",
   exportPresentation: "vakamatik:presentation:export",
 } as const;
 
@@ -43,6 +63,10 @@ export interface DesktopIpcOperationMap {
     readonly request: ShellPingRequest;
     readonly response: ShellPingResponse;
   };
+  readonly [DESKTOP_IPC_CHANNELS.completeClose]: {
+    readonly request: ShellCompleteCloseRequest;
+    readonly response: ShellCompleteCloseResponse;
+  };
   readonly [DESKTOP_IPC_CHANNELS.createCase]: {
     readonly request: CaseCreateRequest;
     readonly response: CaseDialogResult;
@@ -50,6 +74,26 @@ export interface DesktopIpcOperationMap {
   readonly [DESKTOP_IPC_CHANNELS.openCase]: {
     readonly request: CaseOpenRequest;
     readonly response: CaseDialogResult;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.listCaseSessions]: {
+    readonly request: CaseSessionListRequest;
+    readonly response: CaseSessionListResponse;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.activateCaseSession]: {
+    readonly request: CaseSessionActivateRequest;
+    readonly response: CaseView;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.forgetCaseSession]: {
+    readonly request: CaseSessionForgetRequest;
+    readonly response: CaseSessionForgetResponse;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.relinkCaseSession]: {
+    readonly request: CaseSessionRelinkRequest;
+    readonly response: CaseDialogResult;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.saveCaseSessionUiState]: {
+    readonly request: CaseSessionUiStateSaveRequest;
+    readonly response: CaseSessionUiStateSaveResponse;
   };
   readonly [DESKTOP_IPC_CHANNELS.saveCase]: {
     readonly request: CaseSaveRequest;
@@ -78,6 +122,10 @@ export interface DesktopIpcOperationMap {
   readonly [DESKTOP_IPC_CHANNELS.getPresentation]: {
     readonly request: PresentationRequest;
     readonly response: PresentationView;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.previewPresentationSlide]: {
+    readonly request: PresentationSlidePreviewRequest;
+    readonly response: PresentationSlideView;
   };
   readonly [DESKTOP_IPC_CHANNELS.exportPresentation]: {
     readonly request: PresentationRequest;

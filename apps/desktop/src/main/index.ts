@@ -22,14 +22,26 @@ import {
   caseAlignmentSaveRequestSchema,
   caseClinicalSaveRequestSchema,
   caseOpenRequestSchema,
+  caseSessionActivateRequestSchema,
+  caseSessionForgetRequestSchema,
+  caseSessionForgetResponseSchema,
+  caseSessionListRequestSchema,
+  caseSessionListResponseSchema,
+  caseSessionRelinkRequestSchema,
+  caseSessionUiStateSaveRequestSchema,
+  caseSessionUiStateSaveResponseSchema,
   caseSaveRequestSchema,
   caseViewSchema,
   presentationExportResultSchema,
   presentationAcknowledgeRequestSchema,
   presentationRequestSchema,
+  presentationSlidePreviewRequestSchema,
+  presentationSlideViewSchema,
   semanticSlideIdSchema,
   presentationViewSchema,
   shellAppInfoSchema,
+  shellCompleteCloseRequestSchema,
+  shellCompleteCloseResponseSchema,
   shellGetAppInfoRequestSchema,
   shellPingRequestSchema,
   shellPingResponseSchema,
@@ -45,9 +57,12 @@ import {
 } from "@vakamatik/layout-engine";
 import { readThumbnailDataUrl, resolveManagedRelativePath } from "@vakamatik/media";
 import { PptxGenJsExporter } from "@vakamatik/pptx-exporter";
-import type { ImageElement } from "@vakamatik/export-contract";
-import { renderPresentationPreviews } from "@vakamatik/preview";
+import type { ImageElement, SlideDefinition } from "@vakamatik/export-contract";
+import { renderPresentationPreviews, renderSlideToSvg } from "@vakamatik/preview";
+import { RECORD_SLOTS } from "@vakamatik/domain";
 import { assertTrustedIpcSender, isTrustedRendererUrl, resolveApplicationAsset } from "./security.js";
+import { CaseSessionRegistry } from "./session-registry.js";
+import { normalizedCoverCrop } from "./image-crop.js";
 
 const CONTENT_SECURITY_POLICY = [
   "default-src 'none'",
@@ -157,7 +172,7 @@ async function toCaseView(opened: OpenManagedCase) {
   });
 }
 
-async function buildActivePresentation(opened: OpenManagedCase) {
+async function buildActivePresentation(opened: OpenManagedCase, alignment = opened.document.alignment) {
   const entries = await Promise.all(
     Object.entries(opened.document.assignments).map(async ([slotId, assetId]) => {
       const asset = opened.document.assets[assetId];
@@ -184,7 +199,7 @@ async function buildActivePresentation(opened: OpenManagedCase) {
       title: opened.document.title,
       assets,
       clinical: opened.document.clinical,
-      alignment: opened.document.alignment,
+      alignment,
       options: { slide8Behavior: opened.document.presentation.slide8Behavior },
     }),
     assets,
@@ -194,7 +209,16 @@ async function buildActivePresentation(opened: OpenManagedCase) {
 function imageAdjustmentFromElement(element: ImageElement) {
   return {
     ...element.transform,
-    crop: element.crop ?? { left: 0, top: 0, right: 0, bottom: 0 },
+    crop:
+      element.crop ??
+      (element.placement === "cover"
+        ? normalizedCoverCrop(
+            element.source.widthPx,
+            element.source.heightPx,
+            element.bounds.widthPt,
+            element.bounds.heightPt,
+          )
+        : { left: 0, top: 0, right: 0, bottom: 0 }),
   };
 }
 
@@ -219,32 +243,18 @@ async function toPresentationView(opened: OpenManagedCase) {
     revision: opened.document.revision,
     slides: previews.map((preview, index) => {
       const semanticSlideId = semanticSlideIdSchema.parse(preview.semanticId);
+      const slide = built.document.slides[index];
+      if (slide === undefined) throw new Error("Preview does not have a matching slide.");
       return {
         semanticSlideId,
         displayNumber: index + 1,
         title: titleById.get(semanticSlideId) ?? semanticSlideId,
         previewDataUrl: preview.svgDataUrl,
-        imageLayers: (built.document.slides[index]?.elements ?? []).flatMap((element) => {
-          if (element.kind !== "image") return [];
-          const baselineElement = baseline.document.slides
-            .find((slide) => slide.semanticId === semanticSlideId)
-            ?.elements.find((candidate) => candidate.kind === "image" && candidate.id === element.id);
-          const configured = opened.document.alignment.instances[element.id];
-          const availableLinkGroup = defaultLinkGroupForImage(element.id);
-          return [
-            {
-              instanceId: element.id,
-              assetKey: element.id.slice(`${semanticSlideId}-`.length),
-              linkGroup: configured === undefined ? availableLinkGroup : configured.linkGroup,
-              availableLinkGroup,
-              transform: imageAdjustmentFromElement(element),
-              defaultTransform:
-                baselineElement?.kind === "image"
-                  ? imageAdjustmentFromElement(baselineElement)
-                  : imageAdjustmentFromElement(element),
-            },
-          ];
-        }),
+        imageLayers: imageLayersForSlide(
+          opened,
+          slide,
+          baseline.document.slides.find((slide) => slide.semanticId === semanticSlideId),
+        ),
       };
     }),
     warnings,
@@ -252,9 +262,51 @@ async function toPresentationView(opened: OpenManagedCase) {
   });
 }
 
-function registerIpcHandlers(window: BrowserWindow): void {
+const recordLabelById = new Map<string, string>(RECORD_SLOTS.map((slot) => [slot.id, slot.label]));
+
+function imageLayersForSlide(
+  opened: OpenManagedCase,
+  slide: SlideDefinition,
+  baselineSlide: SlideDefinition | undefined,
+  alignment = opened.document.alignment,
+) {
+  return slide.elements.flatMap((element) => {
+    if (element.kind !== "image") return [];
+    const baselineElement = baselineSlide?.elements.find(
+      (candidate) => candidate.kind === "image" && candidate.id === element.id,
+    );
+    const configured = alignment.instances[element.id];
+    const availableLinkGroup = defaultLinkGroupForImage(element.id);
+    const assetKey = element.id.slice(`${slide.semanticId}-`.length);
+    return [
+      {
+        instanceId: element.id,
+        assetKey,
+        label: recordLabelById.get(assetKey) ?? assetKey.replaceAll("_", " "),
+        linkGroup: configured === undefined ? availableLinkGroup : configured.linkGroup,
+        availableLinkGroup,
+        transform: imageAdjustmentFromElement(element),
+        defaultTransform:
+          baselineElement?.kind === "image"
+            ? imageAdjustmentFromElement(baselineElement)
+            : imageAdjustmentFromElement(element),
+        bounds: element.bounds,
+        zIndex: element.zIndex,
+      },
+    ];
+  });
+}
+
+function registerIpcHandlers(window: BrowserWindow, completeClose: () => void): void {
   for (const channel of Object.values(DESKTOP_IPC_CHANNELS)) ipcMain.removeHandler(channel);
   let activeCase: OpenManagedCase | undefined;
+  const sessionRegistry = new CaseSessionRegistry(app.getPath("userData"));
+
+  const registerSession = async (opened: OpenManagedCase) => {
+    const view = await toCaseView(opened);
+    await sessionRegistry.register(opened.root, view);
+    return view;
+  };
 
   ipcMain.handle(DESKTOP_IPC_CHANNELS.getAppInfo, (event, request: unknown) => {
     assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
@@ -272,6 +324,13 @@ function registerIpcHandlers(window: BrowserWindow): void {
     return shellPingResponseSchema.parse({ nonce: parsed.nonce, status: "ok" });
   });
 
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.completeClose, (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    shellCompleteCloseRequestSchema.parse(request);
+    completeClose();
+    return shellCompleteCloseResponseSchema.parse({ status: "closing" });
+  });
+
   ipcMain.handle(DESKTOP_IPC_CHANNELS.createCase, async (event, request: unknown) => {
     assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
     const parsed = caseCreateRequestSchema.parse(request);
@@ -285,7 +344,7 @@ function registerIpcHandlers(window: BrowserWindow): void {
     }
     try {
       activeCase = await createManagedCase(selection.filePaths[0], parsed.title);
-      return caseDialogResultSchema.parse({ status: "ok", case: await toCaseView(activeCase) });
+      return caseDialogResultSchema.parse({ status: "ok", case: await registerSession(activeCase) });
     } catch {
       throw new Error("Case creation failed.");
     }
@@ -304,10 +363,68 @@ function registerIpcHandlers(window: BrowserWindow): void {
     }
     try {
       activeCase = await openManagedCase(selection.filePaths[0]);
-      return caseDialogResultSchema.parse({ status: "ok", case: await toCaseView(activeCase) });
+      return caseDialogResultSchema.parse({ status: "ok", case: await registerSession(activeCase) });
     } catch {
       throw new Error("Case open failed.");
     }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.listCaseSessions, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    caseSessionListRequestSchema.parse(request);
+    return caseSessionListResponseSchema.parse({ sessions: await sessionRegistry.list() });
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.activateCaseSession, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseSessionActivateRequestSchema.parse(request);
+    const root = await sessionRegistry.rootFor(parsed.caseId);
+    if (root === undefined) throw new Error("Case session was not found.");
+    try {
+      const opened = await openManagedCase(root);
+      if (opened.document.caseId !== parsed.caseId) throw new Error("Case identity changed.");
+      activeCase = opened;
+      return caseViewSchema.parse(await registerSession(opened));
+    } catch {
+      throw new Error("Case session could not be activated.");
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.forgetCaseSession, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseSessionForgetRequestSchema.parse(request);
+    if (activeCase?.document.caseId === parsed.caseId) activeCase = undefined;
+    await sessionRegistry.forget(parsed.caseId);
+    return caseSessionForgetResponseSchema.parse({ status: "forgotten" });
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.relinkCaseSession, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseSessionRelinkRequestSchema.parse(request);
+    const selection = await dialog.showOpenDialog(window, {
+      title: "Vaka klasörünü yeniden bağlayın",
+      buttonLabel: "Yeniden bağla",
+      properties: ["openDirectory"],
+    });
+    if (selection.canceled || selection.filePaths[0] === undefined) {
+      return caseDialogResultSchema.parse({ status: "cancelled" });
+    }
+    try {
+      const opened = await openManagedCase(selection.filePaths[0]);
+      if (opened.document.caseId !== parsed.caseId)
+        throw new Error("Selected folder belongs to another case.");
+      activeCase = opened;
+      return caseDialogResultSchema.parse({ status: "ok", case: await registerSession(opened) });
+    } catch {
+      throw new Error("Case session relink failed.");
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.saveCaseSessionUiState, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseSessionUiStateSaveRequestSchema.parse(request);
+    await sessionRegistry.saveUiState(parsed.caseId, parsed.uiState);
+    return caseSessionUiStateSaveResponseSchema.parse({ status: "saved" });
   });
 
   ipcMain.handle(DESKTOP_IPC_CHANNELS.saveCase, async (event, request: unknown) => {
@@ -316,7 +433,7 @@ function registerIpcHandlers(window: BrowserWindow): void {
     try {
       const opened = requireActiveCase(activeCase, parsed.caseId);
       activeCase = await updateManagedCaseTitle(opened, parsed.revision, parsed.title);
-      return caseViewSchema.parse(await toCaseView(activeCase));
+      return caseViewSchema.parse(await registerSession(activeCase));
     } catch {
       throw new Error("Case save failed.");
     }
@@ -409,6 +526,38 @@ function registerIpcHandlers(window: BrowserWindow): void {
     }
   });
 
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.previewPresentationSlide, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = presentationSlidePreviewRequestSchema.parse(request);
+    try {
+      const opened = requireActiveCase(activeCase, parsed.caseId, parsed.revision);
+      const built = await buildActivePresentation(opened, parsed.alignment);
+      const slide = built.document.slides.find(
+        (candidate) => candidate.semanticId === parsed.semanticSlideId,
+      );
+      if (slide === undefined) throw new Error("Slide is not part of this presentation.");
+      const baseline = buildPresentationDocument({
+        title: opened.document.title,
+        assets: built.assets,
+        clinical: opened.document.clinical,
+        options: { slide8Behavior: opened.document.presentation.slide8Behavior },
+      }).document.slides.find((candidate) => candidate.semanticId === parsed.semanticSlideId);
+      const svg = await renderSlideToSvg(slide);
+      const title =
+        CANONICAL_SLIDES.find(([id]) => id === parsed.semanticSlideId)?.[1] ?? parsed.semanticSlideId;
+      return presentationSlideViewSchema.parse({
+        semanticSlideId: parsed.semanticSlideId,
+        displayNumber:
+          built.document.slides.findIndex((candidate) => candidate.semanticId === parsed.semanticSlideId) + 1,
+        title,
+        previewDataUrl: `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`,
+        imageLayers: imageLayersForSlide(opened, slide, baseline, parsed.alignment),
+      });
+    } catch {
+      throw new Error("Presentation slide preview failed.");
+    }
+  });
+
   ipcMain.handle(DESKTOP_IPC_CHANNELS.exportPresentation, async (event, request: unknown) => {
     assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
     const parsed = presentationRequestSchema.parse(request);
@@ -464,6 +613,7 @@ function requireActiveCase(
 }
 
 function createWindow(): BrowserWindow {
+  let closeApproved = false;
   const window = new BrowserWindow({
     width: 1180,
     height: 760,
@@ -487,7 +637,15 @@ function createWindow(): BrowserWindow {
   window.webContents.on("will-navigate", (event, url) => {
     if (!isTrustedRendererUrl(url, developmentServerUrl)) event.preventDefault();
   });
-  registerIpcHandlers(window);
+  registerIpcHandlers(window, () => {
+    closeApproved = true;
+    window.close();
+  });
+  window.on("close", (event) => {
+    if (closeApproved || window.webContents.isDestroyed()) return;
+    event.preventDefault();
+    window.webContents.send(DESKTOP_IPC_CHANNELS.closeRequested);
+  });
 
   const loadPromise =
     developmentServerUrl === undefined

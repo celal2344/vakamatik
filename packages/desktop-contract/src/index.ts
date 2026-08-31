@@ -37,11 +37,15 @@ export const shellPingResponseSchema = z
     status: z.literal("ok"),
   })
   .strict();
+export const shellCompleteCloseRequestSchema = z.object({}).strict();
+export const shellCompleteCloseResponseSchema = z.object({ status: z.literal("closing") }).strict();
 
 export type ShellGetAppInfoRequest = z.infer<typeof shellGetAppInfoRequestSchema>;
 export type ShellAppInfo = z.infer<typeof shellAppInfoSchema>;
 export type ShellPingRequest = z.infer<typeof shellPingRequestSchema>;
 export type ShellPingResponse = z.infer<typeof shellPingResponseSchema>;
+export type ShellCompleteCloseRequest = z.infer<typeof shellCompleteCloseRequestSchema>;
+export type ShellCompleteCloseResponse = z.infer<typeof shellCompleteCloseResponseSchema>;
 
 export const caseAssetViewSchema = z
   .object({
@@ -128,6 +132,65 @@ export type PresentationAcknowledgeRequest = z.infer<typeof presentationAcknowle
 export type CaseDialogResult = z.infer<typeof caseDialogResultSchema>;
 export type CaseCloseResponse = z.infer<typeof caseCloseResponseSchema>;
 
+export const workspaceTabSchema = z.enum(["records", "clinical", "presentation"]);
+export const workspaceUiStateSchema = z
+  .object({
+    tab: workspaceTabSchema,
+    recordFilter: z.enum(["all", "extraoral", "intraoral", "models", "inferior", "imaging", "optional"]),
+    selectedRecordSlotId: recordSlotIdSchema,
+    clinicalSection: z.enum(["patient", "findings", "analyses", "ceph", "planning", "notes"]),
+    selectedSlideId: z.string().min(1).max(120).nullable(),
+    selectedLayerId: z.string().min(1).max(180).nullable(),
+  })
+  .strict();
+export const defaultWorkspaceUiState = {
+  tab: "records",
+  recordFilter: "all",
+  selectedRecordSlotId: "face_front_rest",
+  clinicalSection: "patient",
+  selectedSlideId: null,
+  selectedLayerId: null,
+} as const satisfies z.infer<typeof workspaceUiStateSchema>;
+
+export const caseSessionSummarySchema = z
+  .object({
+    caseId: caseIdSchema,
+    title: z.string().min(1).max(120),
+    folderName: z
+      .string()
+      .min(1)
+      .max(180)
+      .refine((value) => !/[\\/]/u.test(value)),
+    lastOpenedAt: z.string().datetime({ offset: true }),
+    available: z.boolean(),
+    uiState: workspaceUiStateSchema,
+  })
+  .strict();
+export const caseSessionListRequestSchema = z.object({}).strict();
+export const caseSessionListResponseSchema = z
+  .object({ sessions: z.array(caseSessionSummarySchema).max(200) })
+  .strict();
+export const caseSessionActivateRequestSchema = z.object({ caseId: caseIdSchema }).strict();
+export const caseSessionForgetRequestSchema = z.object({ caseId: caseIdSchema }).strict();
+export const caseSessionForgetResponseSchema = z.object({ status: z.literal("forgotten") }).strict();
+export const caseSessionRelinkRequestSchema = z.object({ caseId: caseIdSchema }).strict();
+export const caseSessionUiStateSaveRequestSchema = z
+  .object({ caseId: caseIdSchema, uiState: workspaceUiStateSchema })
+  .strict();
+export const caseSessionUiStateSaveResponseSchema = z.object({ status: z.literal("saved") }).strict();
+
+export type WorkspaceTab = z.infer<typeof workspaceTabSchema>;
+export type WorkspaceUiState = z.infer<typeof workspaceUiStateSchema>;
+export type CaseSessionSummary = z.infer<typeof caseSessionSummarySchema>;
+export type CaseSessionListRequest = z.infer<typeof caseSessionListRequestSchema>;
+export type CaseSessionListResponse = z.infer<typeof caseSessionListResponseSchema>;
+export type CaseSessionActivateRequest = z.infer<typeof caseSessionActivateRequestSchema>;
+export type CaseSessionForgetRequest = z.infer<typeof caseSessionForgetRequestSchema>;
+export type CaseSessionForgetResponse = z.infer<typeof caseSessionForgetResponseSchema>;
+export type CaseSessionRelinkRequest = z.infer<typeof caseSessionRelinkRequestSchema>;
+export type CaseSessionUiStateSaveRequest = z.infer<typeof caseSessionUiStateSaveRequestSchema>;
+export type CaseSessionUiStateSaveResponse = z.infer<typeof caseSessionUiStateSaveResponseSchema>;
+
 export const semanticSlideIdSchema = z.enum(CANONICAL_SLIDE_ORDER);
 export const presentationRequestSchema = z
   .object({
@@ -152,6 +215,16 @@ export const presentationImageLayerSchema = z
     availableLinkGroup: z.string().min(1).max(80).nullable(),
     transform: imageAdjustmentSchema,
     defaultTransform: imageAdjustmentSchema,
+    label: z.string().min(1).max(120),
+    bounds: z
+      .object({
+        xPt: z.number().finite(),
+        yPt: z.number().finite(),
+        widthPt: z.number().positive(),
+        heightPt: z.number().positive(),
+      })
+      .strict(),
+    zIndex: z.number().int(),
   })
   .strict();
 export const presentationSlideViewSchema = z
@@ -186,16 +259,35 @@ export const presentationExportResultSchema = z.discriminatedUnion("status", [
     })
     .strict(),
 ]);
+export const presentationSlidePreviewRequestSchema = z
+  .object({
+    caseId: caseIdSchema,
+    revision: z.number().int().nonnegative(),
+    semanticSlideId: semanticSlideIdSchema,
+    alignment: alignmentStateSchema,
+  })
+  .strict();
 
 export type PresentationRequest = z.infer<typeof presentationRequestSchema>;
 export type PresentationView = z.infer<typeof presentationViewSchema>;
 export type PresentationExportResult = z.infer<typeof presentationExportResultSchema>;
+export type PresentationSlidePreviewRequest = z.infer<typeof presentationSlidePreviewRequestSchema>;
+export type PresentationSlideView = z.infer<typeof presentationSlideViewSchema>;
 
 export interface VakamatikDesktopApi {
   readonly getAppInfo: () => Promise<ShellAppInfo>;
   readonly ping: (request: ShellPingRequest) => Promise<ShellPingResponse>;
+  readonly onCloseRequested: (listener: () => void) => () => void;
+  readonly completeClose: (request: ShellCompleteCloseRequest) => Promise<ShellCompleteCloseResponse>;
   readonly createCase: (request: CaseCreateRequest) => Promise<CaseDialogResult>;
   readonly openCase: (request: CaseOpenRequest) => Promise<CaseDialogResult>;
+  readonly listCaseSessions: (request: CaseSessionListRequest) => Promise<CaseSessionListResponse>;
+  readonly activateCaseSession: (request: CaseSessionActivateRequest) => Promise<CaseView>;
+  readonly forgetCaseSession: (request: CaseSessionForgetRequest) => Promise<CaseSessionForgetResponse>;
+  readonly relinkCaseSession: (request: CaseSessionRelinkRequest) => Promise<CaseDialogResult>;
+  readonly saveCaseSessionUiState: (
+    request: CaseSessionUiStateSaveRequest,
+  ) => Promise<CaseSessionUiStateSaveResponse>;
   readonly saveCase: (request: CaseSaveRequest) => Promise<CaseView>;
   readonly closeCase: (request: CaseCloseRequest) => Promise<CaseCloseResponse>;
   readonly importCaseImage: (request: CaseImportImageRequest) => Promise<CaseDialogResult>;
@@ -203,5 +295,8 @@ export interface VakamatikDesktopApi {
   readonly saveCaseAlignment: (request: CaseAlignmentSaveRequest) => Promise<CaseView>;
   readonly acknowledgePresentationWarnings: (request: PresentationAcknowledgeRequest) => Promise<CaseView>;
   readonly getPresentation: (request: PresentationRequest) => Promise<PresentationView>;
+  readonly previewPresentationSlide: (
+    request: PresentationSlidePreviewRequest,
+  ) => Promise<PresentationSlideView>;
   readonly exportPresentation: (request: PresentationRequest) => Promise<PresentationExportResult>;
 }

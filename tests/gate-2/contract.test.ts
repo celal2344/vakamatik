@@ -19,8 +19,15 @@ describe("documented desktop bridge contract", () => {
     expect(Object.keys(DESKTOP_IPC_CHANNELS)).toEqual([
       "getAppInfo",
       "ping",
+      "closeRequested",
+      "completeClose",
       "createCase",
       "openCase",
+      "listCaseSessions",
+      "activateCaseSession",
+      "forgetCaseSession",
+      "relinkCaseSession",
+      "saveCaseSessionUiState",
       "saveCase",
       "closeCase",
       "importCaseImage",
@@ -28,6 +35,7 @@ describe("documented desktop bridge contract", () => {
       "saveCaseAlignment",
       "acknowledgePresentationWarnings",
       "getPresentation",
+      "previewPresentationSlide",
       "exportPresentation",
     ]);
   });

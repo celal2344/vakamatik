@@ -1,9 +1,9 @@
 # Orthodontic Case Presentation Builder — Project Context
 
-Status: Gate 5 implementation complete; pending product-owner acceptance
-Version: 1.9
-Date: 2026-08-30
-Current gate: Gate 5 implementation complete; Gate 6 is not started
+Status: Gate 5 accepted and closure-verified; presentation workspace UX refinement complete
+Version: 2.1
+Date: 2026-08-31
+Current gate: Gate 5 accepted; Gate 6 is not started
 
 ## 1. Purpose of this file
 
@@ -272,7 +272,7 @@ Evidence: 41 Vitest tests across 10 files, one Electron Playwright security test
 
 ## 16. Gate 5 status
 
-Gate 5 implementation is complete and pending product-owner acceptance. Gate 6 has not started.
+Gate 5 is accepted by the product owner. Gate 6 has not started.
 
 Delivered clinical editing workflow:
 
@@ -283,10 +283,15 @@ Delivered clinical editing workflow:
 - Saved edits feed the same `SlideDocument` used by SVG preview and PptxGenJS export immediately after save/revision refresh.
 - Missing clinical content is visible and blocks export only until the clinician acknowledges the current warning set. Corrupt cases and failed/invalid exports remain blocking errors.
 - Speaker notes are exported only when the clinician enables note export. No diagnosis or interpretation text is generated automatically.
+- Post-acceptance workflow refinement makes `Sunum oluşturma` the single case workspace entry, with `Kayıtlar`, `Klinik`, and `Sunum` as top-level inner tabs.
+- A local recent-case registry provides resumable presentation sessions, unavailable-folder relinking, and safe list removal without exposing raw paths to the renderer.
+- Clinical fields, case titles, and alignment changes stay as local drafts while editing, then save on section/tab/slide/session changes, sidebar navigation, export, and normal application close. Failed boundary saves block that transition; workspace position is saved on navigation actions.
+- Images can be selected directly on the slide preview. Overlaps open a front-to-back layer chooser; the selected image receives a minimal outline and its live alignment controls stay in a right-side inspector.
+- Placement and crop both have compact direction pads. Crop panning preserves its window size and stops at image boundaries; deliberate crop zoom uses separate `Yakınlaştır` / `Uzaklaştır` controls. Keyboard arrows automatically control whichever section was edited most recently; direct rotation dragging updates the selection outline immediately and requests live slide-preview frames.
 
 Ambiguous relationship classifications remain clinician-authored free text. HN/Bolton are manual final values, slide 24 remains a precomposited tracing image, and Dolphin/tooth-level calculators remain excluded.
 
-Evidence: 46 Vitest tests across 11 files, one real-Electron Playwright security test, strict typecheck, lint, formatting, production build, synthetic preview/export, independent Open XML validation, and existing Gate 1–4 regressions pass. See `docs/gates/GATE-5-REPORT.md`.
+Closure evidence: 57 Vitest tests across 12 files and one real-Electron Playwright security test pass. Strict typecheck, lint, formatting, production builds, synthetic preview/export, independent Open XML validation, and all existing Gate 1–4 regressions pass. The ceph regression explicitly covers the shared group on slides 23 and 25–28, detached independence, and independent slide 22 overlay layers. See `docs/gates/GATE-5-REPORT.md`.
 
 ## 17. Lead-agent rules
 
@@ -340,7 +345,6 @@ Gate 2 additions:
 
 Remaining gate structure:
 
-- Gate 5 — Clinical editing: alignment, measurements, diagnosis, treatment plan, notes, and usability.
 - Gate 6 — Final release: recovery checks, essential regression tests, packaging, and pilot readiness.
 
 The former Gate 10 optional modules are removed from v1.
@@ -362,6 +366,6 @@ Gate 5 additions:
 - Precision alignment with shared/detached ceph behavior and independent slide 22 overlay controls.
 - Clinical data binding into shared preview/export geometry and a complete synthetic clinical export regression.
 
-Next action: review and accept Gate 5. Gate 6 must not start without explicit acceptance.
+Next action: begin Gate 6 only when explicitly requested.
 
 Residual risks: the replacement Windows/macOS Gate 2 CI run was not accepted as platform evidence; local Smart App Control prevents Windows packaged-launch evidence; macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.
