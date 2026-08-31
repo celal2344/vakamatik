@@ -15,6 +15,8 @@ import {
   caseSessionListRequestSchema,
   caseSessionListResponseSchema,
   caseSessionRelinkRequestSchema,
+  caseSessionRepairAssetRequestSchema,
+  caseSessionRepairAssetResultSchema,
   caseSessionUiStateSaveRequestSchema,
   caseSessionUiStateSaveResponseSchema,
   caseSaveRequestSchema,
@@ -43,6 +45,7 @@ import {
   type CaseSessionForgetRequest,
   type CaseSessionListRequest,
   type CaseSessionRelinkRequest,
+  type CaseSessionRepairAssetRequest,
   type CaseSessionUiStateSaveRequest,
   type CaseSaveRequest,
   type PresentationRequest,
@@ -114,6 +117,14 @@ const desktopApi: VakamatikDesktopApi = Object.freeze({
       validatedRequest,
     );
     return caseDialogResultSchema.parse(response);
+  },
+  repairMissingCaseAsset: async (request: CaseSessionRepairAssetRequest) => {
+    const validatedRequest = caseSessionRepairAssetRequestSchema.parse(request);
+    const response: unknown = await ipcRenderer.invoke(
+      DESKTOP_IPC_CHANNELS.repairMissingCaseAsset,
+      validatedRequest,
+    );
+    return caseSessionRepairAssetResultSchema.parse(response);
   },
   saveCaseSessionUiState: async (request: CaseSessionUiStateSaveRequest) => {
     const validatedRequest = caseSessionUiStateSaveRequestSchema.parse(request);

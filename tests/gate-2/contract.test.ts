@@ -27,6 +27,7 @@ describe("documented desktop bridge contract", () => {
       "activateCaseSession",
       "forgetCaseSession",
       "relinkCaseSession",
+      "repairMissingCaseAsset",
       "saveCaseSessionUiState",
       "saveCase",
       "closeCase",

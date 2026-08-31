@@ -62,6 +62,7 @@ test("hardened shell launches with only its documented bridge", async () => {
         "ping",
         "previewPresentationSlide",
         "relinkCaseSession",
+        "repairMissingCaseAsset",
         "saveCase",
         "saveCaseAlignment",
         "saveCaseSessionUiState",

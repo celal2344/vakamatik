@@ -6,6 +6,7 @@ import electronFuses from "@electron/fuses";
 const { FuseV1Options, getCurrentFuseWire } = electronFuses;
 const FUSE_DISABLED = 48;
 const FUSE_ENABLED = 49;
+const inspectOnly = process.argv.includes("--inspect-only");
 
 const root = process.cwd();
 const outputRoot = path.join(root, "apps", "desktop", "out");
@@ -50,6 +51,9 @@ for (const [fuse, expected] of expectedFuses) {
     );
   }
 }
+
+process.stdout.write(`Packaged ASAR and all ${String(expectedFuses.size)} expected Electron fuses passed.\n`);
+if (inspectOnly) process.exit(0);
 
 let child;
 try {

@@ -1,9 +1,9 @@
 # Orthodontic Case Presentation Builder — Project Context
 
-Status: Gate 5 accepted and closure-verified; presentation workspace UX refinement complete
-Version: 2.1
+Status: Gate 6 implementation complete; Windows pilot-ready with documented limitations
+Version: 3.0
 Date: 2026-08-31
-Current gate: Gate 5 accepted; Gate 6 is not started
+Current gate: Gate 6 complete; no subsequent gate is started
 
 ## 1. Purpose of this file
 
@@ -293,7 +293,24 @@ Ambiguous relationship classifications remain clinician-authored free text. HN/B
 
 Closure evidence: 57 Vitest tests across 12 files and one real-Electron Playwright security test pass. Strict typecheck, lint, formatting, production builds, synthetic preview/export, independent Open XML validation, and all existing Gate 1–4 regressions pass. The ceph regression explicitly covers the shared group on slides 23 and 25–28, detached independence, and independent slide 22 overlay layers. See `docs/gates/GATE-5-REPORT.md`.
 
-## 17. Lead-agent rules
+## 17. Gate 6 status
+
+Gate 6 implementation is complete. Vakamatik `0.1.0` is ready for a small Windows pilot with the limitations below.
+
+Release evidence:
+
+- A forced frozen-lockfile install, formatting, ESLint, strict TypeScript, all production builds, 59 unit/integration tests, and one real-Electron security test pass.
+- One synthetic workflow covers managed imports, clinical data, alignment, save/reopen, recent-session restoration, 35-slide preview, exact missing-warning acknowledgement, editable PPTX export, and independent Open XML validation.
+- Recovery tests cover failed-save transition blocking, corrupt case and exporter blocking, hash-verified missing-asset repair, whole-folder relocation/relinking, and persisted clinical/alignment/session state across restart simulation.
+- The unsigned Windows x64 package is generated under `apps/desktop/out/Vakamatik-win32-x64/`. ASAR presence, all eight expected Electron fuses, and packaged launch/exit pass locally without bypassing Smart App Control.
+- `README.md` and `docs/PILOT-CHECKLIST.md` define installation, operation, recovery, export review, privacy, limitations, and the required first-user manual checks.
+- Generated packages, decks, test cases, test results, `resources/`, and patient/reference material remain untracked.
+
+macOS application build, packaging, launch, and workflow remain deferred and unverified. Cross-platform CI remains deferred and is not claimed as passing. macOS PowerPoint remains untested under the existing Gate 1 waiver. The package is unsigned and is not a public release.
+
+Evidence: `docs/gates/GATE-6-REPORT.md`.
+
+## 18. Lead-agent rules
 
 - Work one gate at a time and stop after producing its report.
 - Do not use subagents for Gates 3–6.
@@ -305,9 +322,9 @@ Closure evidence: 57 Vitest tests across 12 files and one real-Electron Playwrig
 - Do not weaken validation or tests just to make a gate green.
 - Stop and ask only when a decision materially changes clinical meaning, data safety, or exporter architecture.
 
-## 18. Current non-blocking configuration defaults
+## 19. Current non-blocking configuration defaults
 
-These do not block Gate 5 planning:
+These remain release limitations or clinic-configurable defaults:
 
 - Turkish visible text only in v1.
 - JPEG/PNG media only.
@@ -316,7 +333,7 @@ These do not block Gate 5 planning:
 - TMJ form and worksheet supplied as images.
 - No Dolphin import in the critical path.
 
-## 19. Current handoff
+## 20. Current handoff
 
 Completed:
 
@@ -343,9 +360,7 @@ Gate 2 additions:
 - Gate 2 unit, source-security, Electron launch, and packaged-app smoke coverage.
 - Windows/macOS CI workflow and current Gate 2 report.
 
-Remaining gate structure:
-
-- Gate 6 — Final release: recovery checks, essential regression tests, packaging, and pilot readiness.
+Core gate structure: Gates 1–6 are complete. No subsequent gate or optional module is active.
 
 The former Gate 10 optional modules are removed from v1.
 
@@ -366,6 +381,12 @@ Gate 5 additions:
 - Precision alignment with shared/detached ceph behavior and independent slide 22 overlay controls.
 - Clinical data binding into shared preview/export geometry and a complete synthetic clinical export regression.
 
-Next action: begin Gate 6 only when explicitly requested.
+Gate 6 additions:
 
-Residual risks: the replacement Windows/macOS Gate 2 CI run was not accepted as platform evidence; local Smart App Control prevents Windows packaged-launch evidence; macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; Gate 2 packages are unsigned development artifacts.
+- Release version `0.1.0`, complete synthetic workflow validation, and focused recovery regression coverage.
+- Hash-verified missing-managed-asset repair and hardened failed-save transition guard.
+- Windows unsigned package, ASAR/fuse inspection, successful packaged launch, operator README, and pilot checklist.
+
+Next action: run the first-user Windows pilot checklist and record only synthetic, privacy-safe findings. Do not start optional modules without explicit authorization.
+
+Residual risks: Windows/macOS cross-platform CI remains deferred; macOS application behavior and packaging are unverified; macOS PowerPoint compatibility remains unverified under the Gate 1 waiver; release artifacts are unsigned; the first-user Windows PowerPoint full-deck review remains manual.

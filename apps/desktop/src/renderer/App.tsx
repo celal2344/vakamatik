@@ -15,11 +15,11 @@ import { AlignmentControls, type AlignmentControlsHandle } from "./AlignmentCont
 import { hitTestImageLayers } from "./presentation-hit-test.js";
 import { rotationFromPointerDrag } from "./alignment-keyboard.js";
 import { warningDisplayCopy } from "./warning-copy.js";
-import type { RegisterFlush, SaveStatus } from "./workspace-save.js";
+import { flushBeforeTransition, type RegisterFlush, type SaveStatus } from "./workspace-save.js";
 
 type RecordGroup = (typeof RECORD_SLOTS)[number]["group"];
 type Filter = "all" | RecordGroup;
-type BusyAction = "create" | "open" | "save" | "close" | "import" | null;
+type BusyAction = "create" | "open" | "save" | "close" | "import" | "repair" | null;
 
 const GROUP_LABELS: Readonly<Record<RecordGroup, string>> = {
   extraoral: "Ekstraoral",
@@ -75,7 +75,9 @@ function EmptyCaseWorkspace({
   onCreate,
   onForget,
   onOpen,
+  onRepairAsset,
   onRelink,
+  repairCaseId,
 }: {
   readonly busy: BusyAction;
   readonly error: string | null;
@@ -84,7 +86,9 @@ function EmptyCaseWorkspace({
   readonly onCreate: (title: string) => Promise<void>;
   readonly onForget: (caseId: string) => Promise<void>;
   readonly onOpen: () => Promise<void>;
+  readonly onRepairAsset: (caseId: string) => Promise<void>;
   readonly onRelink: (caseId: string) => Promise<void>;
+  readonly repairCaseId: string | null;
 }): ReactNode {
   const [title, setTitle] = useState("Yeni ortodontik vaka");
 
@@ -123,6 +127,16 @@ function EmptyCaseWorkspace({
                 </span>
               </button>
               <div className="session-actions">
+                {repairCaseId === session.caseId ? (
+                  <button
+                    className="button secondary"
+                    disabled={busy !== null}
+                    onClick={() => void onRepairAsset(session.caseId)}
+                    type="button"
+                  >
+                    Eksik görüntüyü onar
+                  </button>
+                ) : null}
                 {!session.available ? (
                   <button
                     className="button secondary"
@@ -1034,6 +1048,7 @@ export function App(): ReactNode {
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const [closeRequested, setCloseRequested] = useState(false);
+  const [repairCaseId, setRepairCaseId] = useState<string | null>(null);
   const activeFlushRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const registerActiveFlush = useCallback<RegisterFlush>((flush) => {
@@ -1041,7 +1056,7 @@ export function App(): ReactNode {
   }, []);
 
   const flushActiveEdits = useCallback(async (): Promise<boolean> => {
-    return (await activeFlushRef.current?.()) ?? true;
+    return flushBeforeTransition(activeFlushRef.current);
   }, []);
 
   const refreshSessions = async (): Promise<readonly CaseSessionSummary[]> => {
@@ -1099,6 +1114,7 @@ export function App(): ReactNode {
       },
     );
     setError(null);
+    setRepairCaseId(null);
     setSaveStatus("saved");
   };
 
@@ -1133,10 +1149,12 @@ export function App(): ReactNode {
       if (caseView !== null) {
         await window.vakamatik.saveCaseSessionUiState({ caseId: caseView.caseId, uiState });
         await window.vakamatik.closeCase({ caseId: caseView.caseId });
+        setCaseView(null);
       }
       await acceptCase(await window.vakamatik.activateCaseSession({ caseId }));
     } catch {
-      setError("Sunum oturumu açılamadı. Klasör taşındıysa yeniden bağlayın.");
+      setRepairCaseId(caseId);
+      setError("Sunum oturumu açılamadı. Klasör taşındıysa yeniden bağlayın; görüntü eksikse onarın.");
     } finally {
       setBusy(null);
     }
@@ -1182,6 +1200,24 @@ export function App(): ReactNode {
     }
   };
 
+  const repairMissingAsset = async (caseId: string): Promise<void> => {
+    setBusy("repair");
+    try {
+      const result = await window.vakamatik.repairMissingCaseAsset({ caseId });
+      if (result.status === "ok") {
+        await acceptCase(result.case);
+      } else if (result.status === "partial") {
+        setError(
+          `Görüntü onarıldı. ${result.remainingMissingAssets} eksik yönetilen görüntü daha onarılmalı.`,
+        );
+      }
+    } catch {
+      setError("Seçilen dosya eksik görüntünün özgün içeriğiyle eşleşmiyor.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const workspace =
     caseView === null ? (
       <EmptyCaseWorkspace
@@ -1191,7 +1227,9 @@ export function App(): ReactNode {
         onCreate={createCase}
         onForget={forgetSession}
         onOpen={openCase}
+        onRepairAsset={repairMissingAsset}
         onRelink={relinkSession}
+        repairCaseId={repairCaseId}
         sessions={sessions}
       />
     ) : (

@@ -11,6 +11,8 @@ import type {
   CaseSessionListRequest,
   CaseSessionListResponse,
   CaseSessionRelinkRequest,
+  CaseSessionRepairAssetRequest,
+  CaseSessionRepairAssetResult,
   CaseSessionUiStateSaveRequest,
   CaseSessionUiStateSaveResponse,
   CaseSaveRequest,
@@ -42,6 +44,7 @@ export const DESKTOP_IPC_CHANNELS = {
   activateCaseSession: "vakamatik:session:activate",
   forgetCaseSession: "vakamatik:session:forget",
   relinkCaseSession: "vakamatik:session:relink",
+  repairMissingCaseAsset: "vakamatik:session:repair-missing-asset",
   saveCaseSessionUiState: "vakamatik:session:save-ui-state",
   saveCase: "vakamatik:case:save",
   closeCase: "vakamatik:case:close",
@@ -90,6 +93,10 @@ export interface DesktopIpcOperationMap {
   readonly [DESKTOP_IPC_CHANNELS.relinkCaseSession]: {
     readonly request: CaseSessionRelinkRequest;
     readonly response: CaseDialogResult;
+  };
+  readonly [DESKTOP_IPC_CHANNELS.repairMissingCaseAsset]: {
+    readonly request: CaseSessionRepairAssetRequest;
+    readonly response: CaseSessionRepairAssetResult;
   };
   readonly [DESKTOP_IPC_CHANNELS.saveCaseSessionUiState]: {
     readonly request: CaseSessionUiStateSaveRequest;

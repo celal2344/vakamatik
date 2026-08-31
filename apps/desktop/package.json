@@ -1,7 +1,7 @@
 {
   "name": "@vakamatik/desktop",
   "productName": "Vakamatik",
-  "version": "0.0.0-gate-4",
+  "version": "0.1.0",
   "description": "Offline orthodontic case presentation builder",
   "author": "Vakamatik",
   "private": true,

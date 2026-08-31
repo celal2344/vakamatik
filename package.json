@@ -1,6 +1,6 @@
 {
   "name": "orthodontic-case-builder",
-  "version": "0.0.0-gate-4",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.17.1",
@@ -19,6 +19,7 @@
     "test:electron-dev": "node tools/electron/dev-smoke.mjs",
     "test:electron": "pnpm test:electron-dev && pnpm --filter @vakamatik/desktop build && playwright test --config tests/gate-2/playwright.config.ts",
     "test:package-smoke": "node tools/electron/package-smoke.mjs",
+    "test:package-inspect": "node tools/electron/package-smoke.mjs --inspect-only",
     "test:update-goldens": "vitest run --update",
     "package": "pnpm --filter @vakamatik/desktop package",
     "make": "pnpm --filter @vakamatik/desktop make",

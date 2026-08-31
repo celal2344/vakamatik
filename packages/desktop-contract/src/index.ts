@@ -174,6 +174,12 @@ export const caseSessionActivateRequestSchema = z.object({ caseId: caseIdSchema 
 export const caseSessionForgetRequestSchema = z.object({ caseId: caseIdSchema }).strict();
 export const caseSessionForgetResponseSchema = z.object({ status: z.literal("forgotten") }).strict();
 export const caseSessionRelinkRequestSchema = z.object({ caseId: caseIdSchema }).strict();
+export const caseSessionRepairAssetRequestSchema = z.object({ caseId: caseIdSchema }).strict();
+export const caseSessionRepairAssetResultSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("cancelled") }).strict(),
+  z.object({ status: z.literal("partial"), remainingMissingAssets: z.number().int().positive() }).strict(),
+  z.object({ status: z.literal("ok"), case: caseViewSchema }).strict(),
+]);
 export const caseSessionUiStateSaveRequestSchema = z
   .object({ caseId: caseIdSchema, uiState: workspaceUiStateSchema })
   .strict();
@@ -188,6 +194,8 @@ export type CaseSessionActivateRequest = z.infer<typeof caseSessionActivateReque
 export type CaseSessionForgetRequest = z.infer<typeof caseSessionForgetRequestSchema>;
 export type CaseSessionForgetResponse = z.infer<typeof caseSessionForgetResponseSchema>;
 export type CaseSessionRelinkRequest = z.infer<typeof caseSessionRelinkRequestSchema>;
+export type CaseSessionRepairAssetRequest = z.infer<typeof caseSessionRepairAssetRequestSchema>;
+export type CaseSessionRepairAssetResult = z.infer<typeof caseSessionRepairAssetResultSchema>;
 export type CaseSessionUiStateSaveRequest = z.infer<typeof caseSessionUiStateSaveRequestSchema>;
 export type CaseSessionUiStateSaveResponse = z.infer<typeof caseSessionUiStateSaveResponseSchema>;
 
@@ -285,6 +293,9 @@ export interface VakamatikDesktopApi {
   readonly activateCaseSession: (request: CaseSessionActivateRequest) => Promise<CaseView>;
   readonly forgetCaseSession: (request: CaseSessionForgetRequest) => Promise<CaseSessionForgetResponse>;
   readonly relinkCaseSession: (request: CaseSessionRelinkRequest) => Promise<CaseDialogResult>;
+  readonly repairMissingCaseAsset: (
+    request: CaseSessionRepairAssetRequest,
+  ) => Promise<CaseSessionRepairAssetResult>;
   readonly saveCaseSessionUiState: (
     request: CaseSessionUiStateSaveRequest,
   ) => Promise<CaseSessionUiStateSaveResponse>;

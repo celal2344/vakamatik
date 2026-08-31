@@ -1,4 +1,5 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { mkdir, open, readFile, realpath, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -23,6 +24,10 @@ export interface OpenManagedCase {
   readonly document: CaseDocument;
 }
 
+export interface ManagedAssetRepairResult extends OpenManagedCase {
+  readonly remainingMissingAssetIds: readonly string[];
+}
+
 export async function createManagedCase(parentDirectory: string, title: string): Promise<OpenManagedCase> {
   const parent = await realpath(parentDirectory);
   if (!(await stat(parent)).isDirectory()) throw new Error("Cases location is not a directory.");
@@ -42,10 +47,7 @@ export async function createManagedCase(parentDirectory: string, title: string):
 }
 
 export async function openManagedCase(caseDirectory: string): Promise<OpenManagedCase> {
-  const root = await realpath(caseDirectory);
-  if (!(await stat(root)).isDirectory()) throw new Error("Selected case is not a directory.");
-  const raw = await readFile(path.join(root, CASE_FILE_NAME), "utf8");
-  const document = caseDocumentSchema.parse(JSON.parse(raw) as unknown);
+  const { root, document } = await readManagedCaseDocument(caseDirectory);
 
   for (const asset of Object.values(document.assets)) {
     await Promise.all([
@@ -55,6 +57,27 @@ export async function openManagedCase(caseDirectory: string): Promise<OpenManage
     ]);
   }
   return { root, document };
+}
+
+export async function relinkMissingManagedAsset(
+  caseDirectory: string,
+  sourcePath: string,
+): Promise<ManagedAssetRepairResult> {
+  const opened = await readManagedCaseDocument(caseDirectory);
+  const source = await realpath(sourcePath);
+  if (!(await stat(source)).isFile()) throw new Error("Selected replacement is not a regular file.");
+  const assetId = `sha256:${await sha256File(source)}`;
+  if (opened.document.assets[assetId] === undefined) {
+    throw new Error("Selected file does not match an asset in this case.");
+  }
+  const missingBefore = await missingManagedAssetIds(opened);
+  if (!missingBefore.includes(assetId)) {
+    throw new Error("Selected file does not match a missing asset.");
+  }
+
+  const imported = await importManagedImage(opened.root, source);
+  if (imported.assetId !== assetId) throw new Error("Replacement asset identity changed during import.");
+  return { ...opened, remainingMissingAssetIds: await missingManagedAssetIds(opened) };
 }
 
 export async function saveManagedCase(caseRoot: string, document: CaseDocument): Promise<void> {
@@ -173,4 +196,39 @@ function assertRevision(document: CaseDocument, expectedRevision: number): void 
   if (document.revision !== expectedRevision) {
     throw new Error("Case revision is stale. Reopen the case and retry.");
   }
+}
+
+async function readManagedCaseDocument(caseDirectory: string): Promise<OpenManagedCase> {
+  const root = await realpath(caseDirectory);
+  if (!(await stat(root)).isDirectory()) throw new Error("Selected case is not a directory.");
+  const raw = await readFile(path.join(root, CASE_FILE_NAME), "utf8");
+  const document = caseDocumentSchema.parse(JSON.parse(raw) as unknown);
+  return { root, document };
+}
+
+async function missingManagedAssetIds(opened: OpenManagedCase): Promise<readonly string[]> {
+  const missing: string[] = [];
+  for (const asset of Object.values(opened.document.assets)) {
+    try {
+      await Promise.all([
+        resolveManagedRelativePath(opened.root, asset.originalRelativePath, { mustExist: true }),
+        resolveManagedRelativePath(opened.root, asset.normalizedRelativePath, { mustExist: true }),
+        resolveManagedRelativePath(opened.root, asset.thumbnailRelativePath, { mustExist: true }),
+      ]);
+    } catch {
+      missing.push(asset.assetId);
+    }
+  }
+  return missing;
+}
+
+async function sha256File(filePath: string): Promise<string> {
+  const hash = createHash("sha256");
+  await new Promise<void>((resolve, reject) => {
+    const stream = createReadStream(filePath);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.once("error", reject);
+    stream.once("end", resolve);
+  });
+  return hash.digest("hex");
 }

@@ -6,6 +6,7 @@ import {
   acknowledgeManagedCaseWarnings,
   createManagedCase,
   openManagedCase,
+  relinkMissingManagedAsset,
   updateManagedCaseAlignment,
   updateManagedCaseClinical,
   updateManagedCaseTitle,
@@ -28,6 +29,8 @@ import {
   caseSessionListRequestSchema,
   caseSessionListResponseSchema,
   caseSessionRelinkRequestSchema,
+  caseSessionRepairAssetRequestSchema,
+  caseSessionRepairAssetResultSchema,
   caseSessionUiStateSaveRequestSchema,
   caseSessionUiStateSaveResponseSchema,
   caseSaveRequestSchema,
@@ -417,6 +420,38 @@ function registerIpcHandlers(window: BrowserWindow, completeClose: () => void): 
       return caseDialogResultSchema.parse({ status: "ok", case: await registerSession(opened) });
     } catch {
       throw new Error("Case session relink failed.");
+    }
+  });
+
+  ipcMain.handle(DESKTOP_IPC_CHANNELS.repairMissingCaseAsset, async (event, request: unknown) => {
+    assertTrustedIpcSender(event, window.webContents, developmentServerUrl);
+    const parsed = caseSessionRepairAssetRequestSchema.parse(request);
+    const root = await sessionRegistry.rootFor(parsed.caseId);
+    if (root === undefined) throw new Error("Case session was not found.");
+    const selection = await dialog.showOpenDialog(window, {
+      title: "Eksik yönetilen görüntünün özgün dosyasını seçin",
+      buttonLabel: "Eksik görüntüyü onar",
+      properties: ["openFile"],
+      filters: [{ name: "Desteklenen görüntüler", extensions: ["jpg", "jpeg", "png"] }],
+    });
+    if (selection.canceled || selection.filePaths[0] === undefined) {
+      return caseSessionRepairAssetResultSchema.parse({ status: "cancelled" });
+    }
+    try {
+      const repaired = await relinkMissingManagedAsset(root, selection.filePaths[0]);
+      if (repaired.remainingMissingAssetIds.length > 0) {
+        return caseSessionRepairAssetResultSchema.parse({
+          status: "partial",
+          remainingMissingAssets: repaired.remainingMissingAssetIds.length,
+        });
+      }
+      activeCase = await openManagedCase(root);
+      return caseSessionRepairAssetResultSchema.parse({
+        status: "ok",
+        case: await registerSession(activeCase),
+      });
+    } catch {
+      throw new Error("Missing managed asset repair failed.");
     }
   });
 
