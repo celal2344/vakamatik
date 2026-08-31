@@ -1,0 +1,118 @@
+name: Publish desktop prerelease
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: Build macOS ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Apple-Silicon
+            runner: macos-15
+            arch: arm64
+          - name: Intel
+            runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build workspace
+        run: pnpm build
+      - name: Make unsigned macOS package
+        run: pnpm --filter @vakamatik/desktop exec electron-forge make --platform=darwin --arch=${{ matrix.arch }}
+      - name: Prepare release asset
+        shell: bash
+        run: |
+          archive="$(find apps/desktop/out/make/zip/darwin/${{ matrix.arch }} -type f -name '*.zip' -print -quit)"
+          test -n "$archive"
+          unzip -t "$archive"
+          mkdir -p release
+          cp "$archive" "release/Vakamatik-macOS-${{ matrix.name }}-${GITHUB_REF_NAME}.zip"
+      - name: Upload release asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macOS-${{ matrix.name }}
+          path: release/*.zip
+          if-no-files-found: error
+
+  windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build workspace
+        run: pnpm build
+      - name: Make unsigned Windows installer
+        run: pnpm --filter @vakamatik/desktop exec electron-forge make --platform=win32 --arch=x64
+      - name: Prepare release asset
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -Recurse -File apps/desktop/out/make -Filter '*Setup.exe' | Select-Object -First 1
+          if (-not $setup) { throw 'Windows setup executable was not created.' }
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item -LiteralPath $setup.FullName -Destination "release/Vakamatik-Windows-x64-$env:GITHUB_REF_NAME-Setup.exe"
+      - name: Upload release asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-Windows-x64
+          path: release/*.exe
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub prerelease
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+      - name: Publish downloadable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          cat > release-notes.md <<'EOF'
+          Vakamatik 0.1.0 pilot packages.
+
+          - Apple Silicon package: M1, M2, M3, M4, and newer Apple processors.
+          - Intel package: older Intel-based Macs.
+          - Windows package: x64 Windows installer.
+
+          These pilot packages are unsigned and unnotarized. Windows SmartScreen, Smart App Control, or macOS Gatekeeper may warn or block them. No Windows or macOS signing protections were bypassed.
+          EOF
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --prerelease \
+            --title "Vakamatik 0.1.0 Pilot" \
+            --notes-file release-notes.md

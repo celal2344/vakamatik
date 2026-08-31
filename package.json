@@ -23,7 +23,7 @@
     "test:update-goldens": "vitest run --update",
     "package": "pnpm --filter @vakamatik/desktop package",
     "make": "pnpm --filter @vakamatik/desktop make",
-    "ci:verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm build",
+    "ci:verify": "pnpm format:check && pnpm lint && pnpm build && pnpm typecheck && pnpm test:unit",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:electron && pnpm package && pnpm test:package-smoke",
     "gate1": "pnpm build && pnpm generate:gate1 && pnpm validate:gate1 && pnpm test",
     "generate:gate1": "pnpm --filter @vakamatik/pptx-exporter generate",
