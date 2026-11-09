@@ -21,6 +21,7 @@
     "test:package-smoke": "node tools/electron/package-smoke.mjs",
     "test:package-inspect": "node tools/electron/package-smoke.mjs --inspect-only",
     "test:update-goldens": "vitest run --update",
+    "inbox": "node tools/workflow/inbox.mjs",
     "package": "pnpm --filter @vakamatik/desktop package",
     "make": "pnpm --filter @vakamatik/desktop make",
     "ci:verify": "pnpm format:check && pnpm lint && pnpm build && pnpm typecheck && pnpm test:unit",
